@@ -1,13 +1,16 @@
 import pandas as pd
 import os
-from export_data import base_folder
 import matplotlib.pyplot as plt
 import numpy as np
+
 
 dict_waterlevel = {'rec_2020-12-17-13-53-27_3cm': 30, 'rec_2020-12-18-09-46-26_6cm': 60,
                    'rec_2020-12-17-14-38-13_6cm': 60, 'rec_2020-12-18-10-31-28_3cm': 30,
                    'rec_2020-12-18-11-38-34_12cm': 120, 'rec_2020-12-18-13-33-52_6cm': 60,
                    'rec_2020-12-18-14-31-07_3cm': 30}
+
+#base_folder = '//172.25.250.112/arrenberg_data/shared/Sara_Widera/Ausgewertet'
+base_folder = './data/'
 
 def calc_x_velocity(df):
     # Calculate frame-by-frame time and x position differences
@@ -97,7 +100,8 @@ def calc_gain(series):
     return gain
 
 def get_waterlevel(series):
-    wl = dict_waterlevel.get(series.folder)
+    path = series.folder.split(os.sep)
+    wl = dict_waterlevel.get(path[-1])
     return wl
 
 def make_subparticles(df):
@@ -119,6 +123,9 @@ def fill_in_IDs(df):
 
 if __name__ == '__main__':
     Df1 = pd.read_hdf(os.path.join(base_folder, 'Summary.h5'), 'all')
+    #Df1 = Df1[:100000]
+    import IPython
+    IPython.embed()
     Df1['x_real'] = Df1.apply(calc_real_x, axis=1)
     Df1['y_real'] = Df1.apply(calc_real_y, axis=1)
     Df1['water_height'] = Df1.apply(get_waterlevel, axis=1)
@@ -169,8 +176,3 @@ if __name__ == '__main__':
 
 
     Df_71velo_27per = grp_df[(np.isclose(grp_df.u_lin_velocity, 71.5) | np.isclose(grp_df.u_lin_velocity, -71.5)) & np.isclose(grp_df.u_spat_period, 27.98)]
-
-
-
-    import IPython
-    IPython.embed()
