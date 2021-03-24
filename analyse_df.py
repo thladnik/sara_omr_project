@@ -131,7 +131,7 @@ def calc_angular_gain(series):
 
 
 def make_subparticles(df):
-    bool_vec = ((df.x_real < -40) & (df.x_real > 40)).values #
+    bool_vec = ((df.x_real < -40) & (df.x_real > 40)).values
     borders = np.where(np.diff(bool_vec))[0]  #gibt array mit den positionen bei einem übergang, also von true (1) zu false (0) bei filter_conditon und umgekehrt mithilfe der differenz der benachbarten einträge
     outer = [0, *borders+1, bool_vec.shape[0]+1]
     df = df.reset_index()
@@ -194,8 +194,7 @@ def get_x_vel_magnitude(series):
     magnitude = np.linalg.norm(series.x_vel)
     return magnitude
 
-# hier muss ich noch das Dictionary verwenden, weiß nicht genau, ob das so funktioniert
-
+# hier habe ich das mit dem dictionary jetzt so gemacht:
 def calc_real_world_y(df):
     correction = 0.5 * dict_dimensions[df.folder][1]
     y_new = df.y_real_mean + correction
