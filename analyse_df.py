@@ -13,6 +13,15 @@ dict_waterlevel = {'rec_2020-12-17-13-53-27_3cm': 30, 'rec_2020-12-18-09-46-26_6
                    'rec_2021-02-03-12-30-46_6cm': 60, 'rec_2021-02-03-15-40-19_12cm': 120,
                    'rec_2021-02-03-17-05-28_3cm': 30}
 
+
+dict_dimensions = {'rec_2020-12-17-13-53-27_3cm': (121, 33), 'rec_2020-12-18-09-46-26_6cm': (115, 58),
+                   'rec_2020-12-17-14-38-13_6cm': (121.5, 60), 'rec_2020-12-18-10-31-28_3cm': (122, 33),
+                   'rec_2020-12-18-11-38-34_12cm': (120, 120), 'rec_2020-12-18-13-33-52_6cm': (118, 60),
+                   'rec_2020-12-18-14-31-07_3cm': (121, 30),
+                   'rec_2021-02-03-12-30-46_6cm': (120, 61), 'rec_2021-02-03-15-40-19_12cm': (120, 120),
+                   'rec_2021-02-03-17-05-28_3cm': (120, 31)}
+
+
 #base_folder = '//172.25.250.112/arrenberg_data/shared/Sara_Widera/Ausgewertet'
 base_folder = './data/'
 
@@ -103,6 +112,11 @@ def get_x_real_mean(df):
 def get_y_real_mean(df):
     return df.y_real.mean()
 
+def get_waterlevel(series):
+    path = series.folder.split(os.sep)
+    wl = dict_waterlevel.get(path[-1])
+    return wl
+
 def calc_absolute_gain(series):
     fish_vel = series.x_vel
     stim_vel = series.u_lin_velocity
@@ -115,10 +129,6 @@ def calc_angular_gain(series):
     gain = fish_vel / stim_vel
     return gain
 
-def get_waterlevel(series):
-    path = series.folder.split(os.sep)
-    wl = dict_waterlevel.get(path[-1])
-    return wl
 
 def make_subparticles(df):
     bool_vec = ((df.x_real < -40) & (df.x_real > 40)).values #
@@ -137,13 +147,14 @@ def fill_in_IDs(df):
                          'subparticle': df.subparticle.unique()})
 
 def get_retinal_speed(series):
-    wl = series.water_height
-    stim_vel = series.u_lin_velocity
+    wl = series.water_height #mm
+    stim_vel = series.u_lin_velocity #mm/s
     rad_retinal_speed = 2*np.arctan(stim_vel/(2*wl))
     retinal_speed = 360/(2*np.pi)*rad_retinal_speed
     round_retinal_speed = round(retinal_speed, 1)
     return round_retinal_speed
 
+# hier kommt die Funktion, die ich Dir gezeigt hatte
 def calc_actual_retinal_speed(df):
     ypos = df.y_real_mean
     stim_vel = df.u_lin_velocity
@@ -159,13 +170,6 @@ def get_spat_freq(series):
     round_spat_freq = round(spat_freq, 4)
     return round_spat_freq
 
-# def get_temp_freq(series):
-#     #r = series.water_height bzw. 572.9578mm
-#     abs_vel_mm_sec = series.u_lin_velocity
-#     #sf_cyc_mm = series.spat_frequency * r / series.water_height
-#     sf_cyc_mm = series.spat_frequency / series.water_height
-#     tf = sf_cyc_mm / abs_vel_mm_sec
-#     return tf
 
 def calc_temp_freq(df):
     räuml_per_mm = df.u_spat_period
@@ -173,6 +177,7 @@ def calc_temp_freq(df):
     periodendauerT_s = räuml_per_mm / v_mm_s
     temp_freq_1_s = 1 / periodendauerT_s
     return temp_freq_1_s
+
 def get_temp_freq_magnitude(series):
     magnitude = np.linalg.norm(series.temp_freq)
     return magnitude
@@ -189,13 +194,16 @@ def get_x_vel_magnitude(series):
     magnitude = np.linalg.norm(series.x_vel)
     return magnitude
 
+# hier muss ich noch das Dictionary verwenden, weiß nicht genau, ob das so funktioniert
+
 def calc_real_world_y(df):
-    correction = df.water_height * 0.5
+    correction = 0.5 * dict_dimensions[df.folder][1]
     y_new = df.y_real_mean + correction
     return y_new
+
 def calc_real_world_x(df):
-    correction = 60 #hälfte von 12cm breite
-    x_new = df.x_real_mean - correction
+    correction = 0.5 * dict_dimensions[df.folder][0]
+    x_new = df.x_real_mean + correction
     return x_new
 
 
