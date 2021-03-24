@@ -3,6 +3,7 @@ import pandas as pd
 from sklearn import  svm
 
 
+
 def parse_annotation_file(path):
     annotations = dict()
     with open(path) as f:
@@ -233,7 +234,7 @@ if __name__ == '__main__':
 
     annot_path = 'annotations'
 
-    Df = filter_fish(load_summary('data/Summary.h5'))
+    Df = filter_fish(load_summary('//172.25.250.112/arrenberg_data/shared/Sara_Widera/Ausgewertet/Summary.h5'))
 
     import IPython
     IPython.embed()
