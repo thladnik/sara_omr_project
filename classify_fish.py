@@ -2,7 +2,7 @@ import os
 import pandas as pd
 from sklearn import  svm
 
-
+annot_path = None
 
 def parse_annotation_file(path):
     annotations = dict()

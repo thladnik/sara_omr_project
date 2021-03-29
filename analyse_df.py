@@ -2,8 +2,10 @@ import pandas as pd
 import os
 import matplotlib.pyplot as plt
 import numpy as np
+import classify_fish
 from classify_fish import filter_fish, load_summary
 import seaborn as sns
+import sys
 
 
 dict_waterlevel = {'rec_2020-12-17-13-53-27_3cm': 30, 'rec_2020-12-18-09-46-26_6cm': 60,
@@ -66,21 +68,14 @@ def calc_y_velocity(df):
     # Return mean y velocity for this particular particle
     return vy.mean()
 
-
-def test_fun(df):
-    import IPython
-    IPython.embed()
-
-
 def get_real_pos(series):
-    p = np.array([series.x*10, series.y*10, 300.]) #300 cameradistance, habe einfach x und y in mm umgerechnet
-    magnitude = np.linalg.norm(p)
-    d = p/magnitude
-    m = np.array([0, 0, 1])
+    p = np.array([series.x, series.y, 30.]) * 10. #30cm cameradistance, habe einfach x und y in mm umgerechnet
+    d = p/np.linalg.norm(p)
+    m = np.array([0., 0., 1.])
     p_new = p + d * 25 * np.dot(m, d) #25 ist hälfte vom becken (annahme fishpos: mitte)
-    x_new = p_new[0]
-    y_new = p_new[1]
-    return (x_new, y_new)
+    # x_new = p_new[0]
+    # y_new = p_new[1]
+    return p_new[:2]
 
 def calc_real_x(series):
     return get_real_pos(series)[0]
@@ -172,7 +167,7 @@ def get_spat_freq(series):
 
 
 def calc_temp_freq(df):
-    räuml_per_mm = df.u_spat_period
+    räuml_per_mm = df.u_spat_period # Umlaute und Sonderzeichen (ausser "_") sind beim Programmieren keine gute Idee
     v_mm_s = df.u_lin_velocity
     periodendauerT_s = räuml_per_mm / v_mm_s
     temp_freq_1_s = 1 / periodendauerT_s
@@ -208,87 +203,100 @@ def calc_real_world_x(df):
 
 
 if __name__ == '__main__':
-    Df1 = filter_fish(load_summary('//172.25.250.112/arrenberg_data/shared/Sara_Widera/Ausgewertet/Summary.h5'))
-    #Df1 = pd.read_hdf(os.path.join(base_folder, 'Summary.h5'), 'all')
-    #Df1 = Df1[:100000]
-    # import IPython
-    # IPython.embed()
-    Df1['x_real'] = Df1.apply(calc_real_x, axis=1)
-    Df1['y_real'] = Df1.apply(calc_real_y, axis=1)
-    Df1['water_height'] = Df1.apply(get_waterlevel, axis=1)
 
-    grps1 = Df1.groupby(['folder', 'phase_name', 'particle'])
+    if 'recalc' in sys.argv or not(os.path.exists('Summary_final.h5')):
+        print('Recalculating final DataFrame')
 
-    Df2 = grps1.apply(make_subparticles).reset_index(drop=True)
+        classify_fish.probability_threshold = 0.75
+        classify_fish.annot_path = 'annotations'
 
-    grps2 = Df2.groupby(['folder', 'phase_name', 'particle', 'subparticle'])
+        Df = filter_fish(load_summary('data/Summary.h5'))
+        #Df = pd.read_hdf(os.path.join(base_folder, 'Summary.h5'), 'all')
 
-
-    # grp_df = grps2.apply(fill_in_IDs)
-    grp_df = pd.DataFrame()
-    grp_df = grp_df.reset_index()
-    grp_df['x_vel'] = grps2.apply(calc_x_velocity)
-    grp_df['y_vel'] = grps2.apply(calc_y_velocity)
-    grp_df['folder'] = grps2.apply(fun_get_folder)
-    grp_df['phase_name'] = grps2.apply(fun_get_phase_name)
-    grp_df['particle'] = grps2.apply(fun_get_particle)
-    grp_df['u_lin_velocity'] = grps2.apply(fun_get_u_lin_velocity)
-    grp_df['u_spat_period'] = grps2.apply(fun_get_u_spat_period)
-    grp_df['frame_count'] = grps2.apply(get_row_count)
-    grp_df['absolute_gain'] = grp_df.apply(calc_absolute_gain, axis=1)
-    grp_df['x_real_mean'] = grps2.apply(get_x_real_mean)
-    grp_df['y_real_mean'] = grps2.apply(get_y_real_mean)
-    grp_df['water_height'] = grp_df.apply(get_waterlevel, axis=1)
-    grp_df['y_world'] = grp_df.apply(calc_real_world_y, axis=1)
-    grp_df['x_world'] = grp_df.apply(calc_real_world_x,axis=1)
-    grp_df['retinal_speed'] = grp_df.apply(get_retinal_speed, axis=1)
-    grp_df['spat_frequency'] = grp_df.apply(get_spat_freq, axis=1)
-    grp_df['angular_gain'] = grp_df.apply(calc_angular_gain, axis=1)
-    grp_df['retinal_speed_magnitude'] = grp_df.apply(get_retinal_speed_magnitude, axis=1)
-    grp_df['u_lin_velocity_magnitude'] = grp_df.apply(get_u_lin_velocity_magnitude, axis=1)
-    grp_df['x_vel_magnitude'] = grp_df.apply(get_x_vel_magnitude, axis=1)
-    grp_df['temp_freq'] = grp_df.apply(calc_temp_freq, axis=1)
-    grp_df['temp_freq_magnitude'] = grp_df.apply(get_temp_freq_magnitude, axis=1)
-    grp_df['actual_retinal_speed'] = grp_df.apply(calc_actual_retinal_speed, axis=1)
+        # Calculate real positions and add water height
+        positions = Df.apply(get_real_pos, axis=1)
+        Df['x_real'] = [p[0] for p in positions]
+        Df['y_real'] = [p[1] for p in positions]
+        Df['water_height'] = Df.apply(get_waterlevel, axis=1)
 
 
+        # Group by particle
+        grps = Df.groupby(['folder', 'phase_name', 'particle'])
 
-    # import IPython
-    # IPython.embed()
+        # Split particles at side lines
+        Df = grps.apply(make_subparticles).reset_index(drop=True)
 
-    grp_df2 = grp_df[(grp_df.x_real_mean > -50) & (grp_df.x_real_mean < 50)]
-    grp_df2 = grp_df2[np.isfinite(grp_df2.u_lin_velocity)]
-    #shape vergleichen: grp_df2.u_lin_velocity.values dann coralling rausfiltern, shape, dann Corall=... dann shape Diff
-    grp_df2 = grp_df2[np.logical_not((np.isclose(grp_df2.u_lin_velocity, 60.)) | (np.isclose(grp_df2.u_lin_velocity, 75.)) | (np.isclose(grp_df2.u_lin_velocity, 100.)))]
+        # Group by subparticle
+        grps = Df.groupby(['folder', 'phase_name', 'particle', 'subparticle'])
 
-    # grp_df2.groupby(['u_lin_velocity', 'u_spat_period'])
+        # Create final DataFrame
+        Df = pd.DataFrame()
+        Df = Df.reset_index()
+        Df['x_vel'] = grps.apply(calc_x_velocity)
+        Df['y_vel'] = grps.apply(calc_y_velocity)
+        Df['folder'] = grps.apply(fun_get_folder)
+        Df['phase_name'] = grps.apply(fun_get_phase_name)
+        Df['particle'] = grps.apply(fun_get_particle)
+        Df['u_lin_velocity'] = grps.apply(fun_get_u_lin_velocity)
+        Df['u_spat_period'] = grps.apply(fun_get_u_spat_period)
+        Df['frame_count'] = grps.apply(get_row_count)
+        Df['absolute_gain'] = Df.apply(calc_absolute_gain, axis=1)
+        Df['x_real_mean'] = grps.apply(get_x_real_mean)
+        Df['y_real_mean'] = grps.apply(get_y_real_mean)
+        Df['water_height'] = Df.apply(get_waterlevel, axis=1)
+        Df['y_world'] = Df.apply(calc_real_world_y, axis=1)
+        Df['x_world'] = Df.apply(calc_real_world_x, axis=1)
+        Df['retinal_speed'] = Df.apply(get_retinal_speed, axis=1)
+        Df['spat_frequency'] = Df.apply(get_spat_freq, axis=1)
+        Df['angular_gain'] = Df.apply(calc_angular_gain, axis=1)
+        Df['retinal_speed_magnitude'] = Df.apply(get_retinal_speed_magnitude, axis=1)
+        Df['u_lin_velocity_magnitude'] = Df.apply(get_u_lin_velocity_magnitude, axis=1)
+        Df['x_vel_magnitude'] = Df.apply(get_x_vel_magnitude, axis=1)
+        Df['temp_freq'] = Df.apply(calc_temp_freq, axis=1)
+        Df['temp_freq_magnitude'] = Df.apply(get_temp_freq_magnitude, axis=1)
+        Df['actual_retinal_speed'] = Df.apply(calc_actual_retinal_speed, axis=1)
 
-    grp_df2.to_hdf('temp.h5', 'all')
-    #grp_df2.to_excel('data_analysis', 'all')
-    grp_df2 = pd.read_hdf('temp.h5', 'all')
+        # Filter out all fish at the start side
 
+        # TODO: Das hier geht so nicht. Die Fische an den Raendern duerfen nur in Richtung der Stimulus-Bewegung gefiltert werden.
+        #  Andernfalls filterst Du hier auch alle Fische raus, die wegen einem nicht-relevanten Stimulus an der Startposition bleiben
+        # Df = Df[(Df.x_real_mean > -50) & (Df.x_real_mean < 50)]
 
+        # TODO: Besser waere es so:
+        # Ich weiss nicht ob u_lin_velocity < 0. links oder rechts bedeutet, das hier muesstest Du entsprechend anpassen
+        # Also falls z.B. u_lin_velocity < 0. links ist, dann muesste es wie folgt aussehen:
+        Df = Df[(Df['u_lin_velocity'] < 0.) & (Df.x_real_mean < 50.) | (Df['u_lin_velocity'] > 0.) & (Df.x_real_mean > -50.)]
+        # Andernfalls muessten die Bedingungen umgedreht werden:
+        # Df = Df[(Df['u_lin_velocity'] > 0.) & (Df.x_real_mean < 50.) | (Df['u_lin_velocity'] < 0.) & (Df.x_real_mean > -50.)]
 
-    # import IPython
-    # IPython.embed()
+        # Filter out all blank phases
+        Df = Df[np.isfinite(Df.u_lin_velocity)]
+
+        # Filter out all coralling stimulus phases
+        Df = Df[np.logical_not((np.isclose(Df.u_lin_velocity, 60.)) | (np.isclose(Df.u_lin_velocity, 75.)) | (np.isclose(Df.u_lin_velocity, 100.)))]
+
+        Df.to_hdf('Summary_final.h5', 'all')
+        Df.to_excel('Summary_final.xlsx')
+
+    Df = pd.read_hdf('Summary_final.h5', 'all')
 
 
 
 # FILTERED DATA FOR FIGURES:
 
-    all_abs_velo = grp_df2[(np.isclose(grp_df2.u_lin_velocity, 28) | np.isclose(grp_df2.u_lin_velocity, 143) | np.isclose(grp_df2.u_lin_velocity, 286) | np.isclose(grp_df2.u_lin_velocity, -28) | np.isclose(grp_df2.u_lin_velocity, -143) | np.isclose(grp_df2.u_lin_velocity, -286))]
+    all_abs_velo = Df[(np.isclose(Df.u_lin_velocity, 28) | np.isclose(Df.u_lin_velocity, 143) | np.isclose(Df.u_lin_velocity, 286) | np.isclose(Df.u_lin_velocity, -28) | np.isclose(Df.u_lin_velocity, -143) | np.isclose(Df.u_lin_velocity, -286))]
 
-    an_velo25 = grp_df2[np.isclose(grp_df2.u_lin_velocity, 13.3) | np.isclose(grp_df2.u_lin_velocity, 26.6) | np.isclose(grp_df2.u_lin_velocity, 53.2) | np.isclose(grp_df2.u_lin_velocity, -13.3) | np.isclose(grp_df2.u_lin_velocity, -26.6) | np.isclose(grp_df2.u_lin_velocity, -53.2)]
-    an_velo50 = grp_df2[((np.isclose(grp_df2.water_height, 30)) & (np.isclose(grp_df2.u_lin_velocity, 28))) | np.isclose(grp_df2.u_lin_velocity, 56) | np.isclose(grp_df2.u_lin_velocity, 111.9) | ((np.isclose(grp_df2.water_height, 30)) & (np.isclose(grp_df2.u_lin_velocity, -28))) | np.isclose(grp_df2.u_lin_velocity, -56) | np.isclose(grp_df2.u_lin_velocity, -111.9)]
-    an_velo100 = grp_df2[((np.isclose(grp_df2.water_height, 120)) & (np.isclose(grp_df2.u_lin_velocity, 286))) | ((np.isclose(grp_df2.water_height, 60)) & (np.isclose(grp_df2.u_lin_velocity, 143))) | np.isclose(grp_df2.u_lin_velocity, 71.5) | ((np.isclose(grp_df2.water_height, 120)) & (np.isclose(grp_df2.u_lin_velocity, -286))) | ((np.isclose(grp_df2.water_height, 60)) & (np.isclose(grp_df2.u_lin_velocity, -143))) | np.isclose(grp_df2.u_lin_velocity, -71.5)]
-    all_an_velo = grp_df2[np.isclose(grp_df2.u_lin_velocity, 13.3) | np.isclose(grp_df2.u_lin_velocity, 26.6) | np.isclose(grp_df2.u_lin_velocity, 53.2) | np.isclose(grp_df2.u_lin_velocity, -13.3) | np.isclose(grp_df2.u_lin_velocity, -26.6) | np.isclose(grp_df2.u_lin_velocity, -53.2) | ((np.isclose(grp_df2.water_height, 30)) & (np.isclose(grp_df2.u_lin_velocity, 28))) | np.isclose(grp_df2.u_lin_velocity, 56) | np.isclose(grp_df2.u_lin_velocity, 111.9) | ((np.isclose(grp_df2.water_height, 30)) & (np.isclose(grp_df2.u_lin_velocity, -28))) | np.isclose(grp_df2.u_lin_velocity, -56) | np.isclose(grp_df2.u_lin_velocity, -111.9) | ((np.isclose(grp_df2.water_height, 120)) & (np.isclose(grp_df2.u_lin_velocity, 286))) | ((np.isclose(grp_df2.water_height, 60)) & (np.isclose(grp_df2.u_lin_velocity, 143))) | np.isclose(grp_df2.u_lin_velocity, 71.5) | ((np.isclose(grp_df2.water_height, 120)) & (np.isclose(grp_df2.u_lin_velocity, -286))) | ((np.isclose(grp_df2.water_height, 60)) & (np.isclose(grp_df2.u_lin_velocity, -143))) | np.isclose(grp_df2.u_lin_velocity, -71.5)]
+    an_velo25 = Df[np.isclose(Df.u_lin_velocity, 13.3) | np.isclose(Df.u_lin_velocity, 26.6) | np.isclose(Df.u_lin_velocity, 53.2) | np.isclose(Df.u_lin_velocity, -13.3) | np.isclose(Df.u_lin_velocity, -26.6) | np.isclose(Df.u_lin_velocity, -53.2)]
+    an_velo50 = Df[((np.isclose(Df.water_height, 30)) & (np.isclose(Df.u_lin_velocity, 28))) | np.isclose(Df.u_lin_velocity, 56) | np.isclose(Df.u_lin_velocity, 111.9) | ((np.isclose(Df.water_height, 30)) & (np.isclose(Df.u_lin_velocity, -28))) | np.isclose(Df.u_lin_velocity, -56) | np.isclose(Df.u_lin_velocity, -111.9)]
+    an_velo100 = Df[((np.isclose(Df.water_height, 120)) & (np.isclose(Df.u_lin_velocity, 286))) | ((np.isclose(Df.water_height, 60)) & (np.isclose(Df.u_lin_velocity, 143))) | np.isclose(Df.u_lin_velocity, 71.5) | ((np.isclose(Df.water_height, 120)) & (np.isclose(Df.u_lin_velocity, -286))) | ((np.isclose(Df.water_height, 60)) & (np.isclose(Df.u_lin_velocity, -143))) | np.isclose(Df.u_lin_velocity, -71.5)]
+    all_an_velo = Df[np.isclose(Df.u_lin_velocity, 13.3) | np.isclose(Df.u_lin_velocity, 26.6) | np.isclose(Df.u_lin_velocity, 53.2) | np.isclose(Df.u_lin_velocity, -13.3) | np.isclose(Df.u_lin_velocity, -26.6) | np.isclose(Df.u_lin_velocity, -53.2) | ((np.isclose(Df.water_height, 30)) & (np.isclose(Df.u_lin_velocity, 28))) | np.isclose(Df.u_lin_velocity, 56) | np.isclose(Df.u_lin_velocity, 111.9) | ((np.isclose(Df.water_height, 30)) & (np.isclose(Df.u_lin_velocity, -28))) | np.isclose(Df.u_lin_velocity, -56) | np.isclose(Df.u_lin_velocity, -111.9) | ((np.isclose(Df.water_height, 120)) & (np.isclose(Df.u_lin_velocity, 286))) | ((np.isclose(Df.water_height, 60)) & (np.isclose(Df.u_lin_velocity, 143))) | np.isclose(Df.u_lin_velocity, 71.5) | ((np.isclose(Df.water_height, 120)) & (np.isclose(Df.u_lin_velocity, -286))) | ((np.isclose(Df.water_height, 60)) & (np.isclose(Df.u_lin_velocity, -143))) | np.isclose(Df.u_lin_velocity, -71.5)]
 
-    an_velo25_50 = grp_df2[((np.isclose(grp_df2.water_height, 30)) & (np.isclose(grp_df2.u_lin_velocity, 28))) | np.isclose(grp_df2.u_lin_velocity, 56) | np.isclose(grp_df2.u_lin_velocity, 111.9) | ((np.isclose(grp_df2.water_height, 30)) & (np.isclose(grp_df2.u_lin_velocity, -28))) | np.isclose(grp_df2.u_lin_velocity, -56) | np.isclose(grp_df2.u_lin_velocity, -111.9) | np.isclose(grp_df2.u_lin_velocity, 13.3) | np.isclose(grp_df2.u_lin_velocity, 26.6) | np.isclose(grp_df2.u_lin_velocity, 53.2) | np.isclose(grp_df2.u_lin_velocity, -13.3) | np.isclose(grp_df2.u_lin_velocity, -26.6) | np.isclose(grp_df2.u_lin_velocity, -53.2)]
+    an_velo25_50 = Df[((np.isclose(Df.water_height, 30)) & (np.isclose(Df.u_lin_velocity, 28))) | np.isclose(Df.u_lin_velocity, 56) | np.isclose(Df.u_lin_velocity, 111.9) | ((np.isclose(Df.water_height, 30)) & (np.isclose(Df.u_lin_velocity, -28))) | np.isclose(Df.u_lin_velocity, -56) | np.isclose(Df.u_lin_velocity, -111.9) | np.isclose(Df.u_lin_velocity, 13.3) | np.isclose(Df.u_lin_velocity, 26.6) | np.isclose(Df.u_lin_velocity, 53.2) | np.isclose(Df.u_lin_velocity, -13.3) | np.isclose(Df.u_lin_velocity, -26.6) | np.isclose(Df.u_lin_velocity, -53.2)]
 
 
-    freq4 = grp_df2[np.isclose(grp_df2.spat_frequency, 0.04)]
-    freq2 = grp_df2[np.isclose(grp_df2.spat_frequency, 0.02)]
-    freq1 = grp_df2[np.isclose(grp_df2.spat_frequency, 0.01)]
+    freq4 = Df[np.isclose(Df.spat_frequency, 0.04)]
+    freq2 = Df[np.isclose(Df.spat_frequency, 0.02)]
+    freq1 = Df[np.isclose(Df.spat_frequency, 0.01)]
 
     an_velo_freq2 = all_an_velo[np.isclose(all_an_velo.spat_frequency, 0.02)]
     abs_velo_freq2 = all_abs_velo[np.isclose(all_abs_velo.spat_frequency, 0.02)]
@@ -306,18 +314,18 @@ if __name__ == '__main__':
 
 #1 GAIN TUNING FUNCTIONS
     # absolute Gain
-    ax = sns.relplot(data=grp_df2, x='retinal_speed', y='absolute_gain', hue='water_height', palette='dark', col='spat_frequency', kind='line')
+    ax = sns.relplot(data=Df, x='retinal_speed', y='absolute_gain', hue='water_height', palette='dark', col='spat_frequency', kind='line')
     ax.set(xlabel='retinal speed [°/s]', ylabel='absolute gain', title='tuning function (all data)')
 
     # relative Gain
-    ax = sns.relplot(data=grp_df2, x='retinal_speed', y='angular_gain', hue='water_height', palette='dark', col='spat_frequency', kind='line')
+    ax = sns.relplot(data=Df, x='retinal_speed', y='angular_gain', hue='water_height', palette='dark', col='spat_frequency', kind='line')
     ax.set(xlabel='retinal speed [°/s]', ylabel='relative gain', title='tuning function (all data)')
 
 #tuning func für alle angular und für alle absoluten velos?
 
 #2 GAIN AT DIFFERENT STIMULUS SPEEDS
     #(overview)
-    ax = sns.relplot(data=grp_df2, x='retinal_speed', y='absolute_gain', hue='water_height', palette='dark', col='spat_frequency')
+    ax = sns.relplot(data=Df, x='retinal_speed', y='absolute_gain', hue='water_height', palette='dark', col='spat_frequency')
     ax.set(xlabel='(all angular velocities) retinal speed [°/s]', ylabel='absolute gain')
 
     # violin plot: absolute Gain, angular velocities, freq 0.02
@@ -366,25 +374,25 @@ if __name__ == '__main__':
 
     # spat_freq = 0.02, all absolute velocities
 
-    ax = sns.relplot(data=grp_df2, x='retinal_speed_magnitude', y='y_world', hue='water_height', palette='dark', col='spat_frequency', kind='line')
+    ax = sns.relplot(data=Df, x='retinal_speed_magnitude', y='y_world', hue='water_height', palette='dark', col='spat_frequency', kind='line')
 # Fish velocity at different speeds
 
 
 #5 TUNING FOR SWIMMING SPEED
-    ax = sns.relplot(data=grp_df2, x='retinal_speed', y='x_vel', hue='water_height', palette='dark', col='spat_frequency', kind='line')
+    ax = sns.relplot(data=Df, x='retinal_speed', y='x_vel', hue='water_height', palette='dark', col='spat_frequency', kind='line')
     ax.set(xlabel='retinal speed [°/s]', ylabel='y-position [mm]')
 
 
 #6 Y POSITION (WORLD) AT DIFFERENT RETINAL SPEEDS
-    ax = sns.relplot(data=grp_df2, x='retinal_speed', y='y_world', hue='water_height', palette='dark', col='spat_frequency', kind='line')
+    ax = sns.relplot(data=Df, x='retinal_speed', y='y_world', hue='water_height', palette='dark', col='spat_frequency', kind='line')
     ax.set(xlabel='retinal speed [°/s]', ylabel='y-position [mm]')
     ax = sns.relplot(data=an_velo25_50, x='temp_freq_magnitude', y='x_vel', hue='retinal_speed_magnitude', palette='dark', col='water_height', kind='line')
 
 
 #7 GAIN COLOURMAP: SPAT FREQ, TEMP FREQ, RETINAL SPEED
     sns.set()
-    ax = sns.scatterplot(data=grp_df2, x="retinal_speed_magnitude", y="temp_freq_magnitude", hue="angular_gain", palette='gist_rainbow')
-    norm = plt.Normalize(grp_df2['angular_gain'].min(), grp_df2['angular_gain'].max())
+    ax = sns.scatterplot(data=Df, x="retinal_speed_magnitude", y="temp_freq_magnitude", hue="angular_gain", palette='gist_rainbow')
+    norm = plt.Normalize(Df['angular_gain'].min(), Df['angular_gain'].max())
     sm = plt.cm.ScalarMappable(cmap="gist_rainbow", norm=norm)
     sm.set_array([])
     # Remove the legend and add a colorbar
