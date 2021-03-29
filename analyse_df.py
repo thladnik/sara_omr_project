@@ -288,6 +288,7 @@ if __name__ == '__main__':
     grp_df['temp_freq_magnitude'] = grp_df.apply(get_temp_freq_magnitude, axis=1)
     grp_df['actual_retinal_speed'] = grp_df.apply(calc_actual_retinal_speed, axis=1)
 
+    # grp_df.to_csv('grp_df.csv')
 
     #calc gain_mean for tims figure: gruppieren vom Ausgangsdatensatz und in neues df speichern
     grps3 = grp_df.groupby(['water_height', 'spat_frequency', 'temp_freq'])
