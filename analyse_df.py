@@ -4,6 +4,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 from classify_fish import filter_fish, load_summary
 import seaborn as sns
+from scipy import misc
+
+from auxfuns import *
+import matplotlib as mpl
+from scipy.stats import sem
+from time import sleep
+import scipy.io as scio
+
 
 
 dict_waterlevel = {'rec_2020-12-17-13-53-27_3cm': 30, 'rec_2020-12-18-09-46-26_6cm': 60,
@@ -21,9 +29,22 @@ dict_dimensions = {'rec_2020-12-17-13-53-27_3cm': (121, 33), 'rec_2020-12-18-09-
                    'rec_2021-02-03-12-30-46_6cm': (120, 61), 'rec_2021-02-03-15-40-19_12cm': (120, 120),
                    'rec_2021-02-03-17-05-28_3cm': (120, 31)}
 
+#drei_27 = grp_df2.loc['rec_2020-12-17-13-53-27_3cm']
+# zwölf_19 = grp_df2.loc['rec_2021-02-03-15-40-19_12cm']
+# drei_28 = grp_df2.loc['rec_2021-02-03-17-05-28_3cm']
 
 #base_folder = '//172.25.250.112/arrenberg_data/shared/Sara_Widera/Ausgewertet'
 base_folder = './data/'
+
+def plot_colorpoint(ax, x, y, z, cmap, valmap, fontsize = 9):
+    if sum(z < valmap) > len(valmap) / 2:
+        fontcolor = 'w'
+    else:
+        fontcolor = 'k'
+    ax.loglog(x, y, marker='o', markersize=17, color=cmap[np.argmin(np.abs(valmap - z)), :])
+    ax.text(x, y, str(round(z, 1)), fontsize=fontsize, color=fontcolor,  ha='center', va='center')
+
+
 
 def calc_x_velocity(df):
     # Calculate frame-by-frame time and x position differences
@@ -194,7 +215,7 @@ def get_x_vel_magnitude(series):
     magnitude = np.linalg.norm(series.x_vel)
     return magnitude
 
-# hier habe ich das mit dem dictionary jetzt so gemacht:
+# hier habe ich das mit dem dictionary gemacht, funktioniert aber noch nicht ganz
 def calc_real_world_y(df):
     correction = 0.5 * dict_dimensions[df.folder][1]
     y_new = df.y_real_mean + correction
@@ -205,6 +226,22 @@ def calc_real_world_x(df):
     x_new = df.x_real_mean + correction
     return x_new
 
+def get_angular_gain_mean(df):
+    return df.angular_gain.mean()
+def get_absolute_gain_mean(df):
+    return df.absolute_gain.mean()
+def get_spat_frequency_mean(df):
+    return df.spat_frequency.mean()
+def get_temp_freq_mean(df):
+    return df.temp_freq.mean()
+def get_temp_freq_magnitude_mean(df):
+    return df.temp_freq_magnitude.mean()
+def get_retinal_speed_mean(df):
+    return df.retinal_speed.mean()
+def get_retinal_speed_magnitude_mean(df):
+    return df.retinal_speed_magnitude.mean()
+def get_waterheight_mean(df):
+    return df.water_height.mean()
 
 
 if __name__ == '__main__':
@@ -252,6 +289,20 @@ if __name__ == '__main__':
     grp_df['actual_retinal_speed'] = grp_df.apply(calc_actual_retinal_speed, axis=1)
 
 
+    #calc gain_mean for tims figure: gruppieren vom Ausgangsdatensatz und in neues df speichern
+    grps3 = grp_df.groupby(['water_height', 'spat_frequency', 'temp_freq'])
+    grp_df3 = pd.DataFrame()
+    grp_df3['angular_gain_mean'] = grps3.apply(get_angular_gain_mean)
+    grp_df3['absolute_gain_mean'] = grps3.apply(get_absolute_gain_mean)
+    grp_df3['spat_frequency_mean'] = grps3.apply(get_spat_frequency_mean)
+    grp_df3['temp_freq_mean'] = grps3.apply(get_temp_freq_mean)
+    grp_df3['temp_freq_magnitude_mean'] = grps3.apply(get_temp_freq_magnitude_mean)
+    grp_df3['retinal_speed_mean'] = grps3.apply(get_retinal_speed_mean)
+    grp_df3['retinal_speed_magnitude_mean'] = grps3.apply(get_retinal_speed_magnitude_mean)
+    grp_df3['water_height_mean'] = grps3.apply(get_waterheight_mean)
+
+
+
 
     # import IPython
     # IPython.embed()
@@ -261,11 +312,15 @@ if __name__ == '__main__':
     #shape vergleichen: grp_df2.u_lin_velocity.values dann coralling rausfiltern, shape, dann Corall=... dann shape Diff
     grp_df2 = grp_df2[np.logical_not((np.isclose(grp_df2.u_lin_velocity, 60.)) | (np.isclose(grp_df2.u_lin_velocity, 75.)) | (np.isclose(grp_df2.u_lin_velocity, 100.)))]
 
+    # negatives y_world.min Problem lösen:
+    grp_df2 = grp_df2[grp_df2.y_world >= 0]
+
     # grp_df2.groupby(['u_lin_velocity', 'u_spat_period'])
 
     grp_df2.to_hdf('temp.h5', 'all')
     #grp_df2.to_excel('data_analysis', 'all')
     grp_df2 = pd.read_hdf('temp.h5', 'all')
+    # grp_df2.to_csv('temp.csv')
 
 
 
@@ -296,11 +351,16 @@ if __name__ == '__main__':
     an_velo25_freq2 = an_velo25[np.isclose(an_velo25.spat_frequency, 0.02)]
 
 
+    wh30 = grp_df3[(np.isclose(grp_df3.water_height_mean, 30))]
+    wh60 = grp_df3[(np.isclose(grp_df3.water_height_mean, 60))]
+    wh120 = grp_df3[(np.isclose(grp_df3.water_height_mean, 120))]
+
+
     import IPython
     IPython.embed()
 
     # Stats = pd.DataFrame(grp_df2, columns = ['folder', 'phase_name', 'particle', 'u_lin_velocity', 'frame_count', 'x_vel', 'x_vel_magnitude', 'absolute_gain', 'angular_gain', 'y_world', 'water_height', 'retinal_speed', 'retinal_speed_magnitude', 'spat_frequency'])
-    # grp_df2.to_excel(r'F:\Sara_Widera\statistics.xlsx', index=False, header=True)
+    grp_df2.to_excel(r'F:\Sara_Widera\statistics.xlsx', index=True, header=True)
 
 # FIGURES FOR THESIS:
 
@@ -382,16 +442,52 @@ if __name__ == '__main__':
 
 
 #7 GAIN COLOURMAP: SPAT FREQ, TEMP FREQ, RETINAL SPEED
-    sns.set()
-    ax = sns.scatterplot(data=grp_df2, x="retinal_speed_magnitude", y="temp_freq_magnitude", hue="angular_gain", palette='gist_rainbow')
-    norm = plt.Normalize(grp_df2['angular_gain'].min(), grp_df2['angular_gain'].max())
-    sm = plt.cm.ScalarMappable(cmap="gist_rainbow", norm=norm)
-    sm.set_array([])
-    # Remove the legend and add a colorbar
-    ax.get_legend().remove()
-    ax.figure.colorbar(sm)
-    plt.show()
+    # sns.set()
+    # ax = sns.scatterplot(data=grp_df2, x="retinal_speed_magnitude", y="temp_freq_magnitude", hue="angular_gain", palette='gist_rainbow')
+    # norm = plt.Normalize(grp_df2['angular_gain'].min(), grp_df2['angular_gain'].max())
+    # sm = plt.cm.ScalarMappable(cmap="gist_rainbow", norm=norm)
+    # sm.set_array([])
+    # # Remove the legend and add a colorbar
+    # ax.get_legend().remove()
+    # ax.figure.colorbar(sm)
+    # plt.show()
 
+#----> TIMs COLOURMAP :)
+    heatmap_size = (12.5, 11.5)
+
+    cmap_scheme = 'viridis'
+    markersize = 17
+
+    fig = custom_fig('angular Gain for spat & temp freq at waterheight 30mm', heatmap_size)
+    ax = fig.add_subplot(1, 1, 1)
+    ax.semilogy([],[])
+    # add colorbar
+    minval = np.floor(np.min(wh30['angular_gain_mean']) * 10) / 10
+    maxval = np.ceil(np.max(wh30['angular_gain_mean']) * 10) / 10
+    zticks = np.arange(minval, maxval + 0.01, 0.1)
+    cax = ax.imshow(np.concatenate((zticks, zticks)).reshape((2, -1)), interpolation='nearest', cmap=cmap_scheme)
+    cbar = fig.colorbar(cax, ticks=zticks)
+    cbar.ax.set_ylabel('angular gain')
+    cmap = np.asarray(cbar.cmap.colors)
+    valmap = np.arange(minval, maxval, (maxval - minval) / cmap.shape[0])
+    plt.cla()  # clears imshow plot, but keeps the colorbar
+
+
+    for sfreq, tfreq, gain in zip(wh30['spat_frequency_mean'], wh30['temp_freq_mean'], wh30['angular_gain_mean']):
+        plot_colorpoint(ax, sfreq, tfreq, gain, cmap, valmap)
+
+    xlim = [0.008, 0.1]
+    ylim = [0.08, 6.5]
+
+    ax.set_xlabel('spatial frequency [cyc/deg]')
+    ax.set_ylabel('temporal frequency [cyc/s]')
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    adjust_spines(ax)
+
+    fig.savefig('../angular_gain_heatmap_wh30.svg', format='svg')
+
+    plt.show()
 
 
 
