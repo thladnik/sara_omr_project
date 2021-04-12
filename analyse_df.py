@@ -7,6 +7,12 @@ from classify_fish import filter_fish, load_summary
 import seaborn as sns
 import sys
 
+from auxfuns import *
+import matplotlib as mpl
+from scipy.stats import sem
+from time import sleep
+import scipy.io as scio
+
 
 dict_waterlevel = {'rec_2020-12-17-13-53-27_3cm': 30, 'rec_2020-12-18-09-46-26_6cm': 60,
                    'rec_2020-12-17-14-38-13_6cm': 60, 'rec_2020-12-18-10-31-28_3cm': 30,
@@ -23,9 +29,20 @@ dict_dimensions = {'rec_2020-12-17-13-53-27_3cm': (121, 33), 'rec_2020-12-18-09-
                    'rec_2021-02-03-12-30-46_6cm': (120, 61), 'rec_2021-02-03-15-40-19_12cm': (120, 120),
                    'rec_2021-02-03-17-05-28_3cm': (120, 31)}
 
+# drei_28 = grp_df2.loc['rec_2021-02-03-17-05-28_3cm']
 
 #base_folder = '//172.25.250.112/arrenberg_data/shared/Sara_Widera/Ausgewertet'
 base_folder = './data/'
+
+def plot_colorpoint(ax, x, y, z, cmap, valmap, fontsize = 9):
+    if sum(z < valmap) > len(valmap) / 2:
+        fontcolor = 'w'
+    else:
+        fontcolor = 'k'
+    ax.loglog(x, y, marker='o', markersize=17, color=cmap[np.argmin(np.abs(valmap - z)), :])
+    ax.text(x, y, str(round(z, 1)), fontsize=fontsize, color=fontcolor,  ha='center', va='center')
+
+
 
 def calc_x_velocity(df):
     # Calculate frame-by-frame time and x position differences
@@ -124,9 +141,9 @@ def calc_angular_gain(series):
     gain = fish_vel / stim_vel
     return gain
 
-
+# TODO: nullen fixen
 def make_subparticles(df):
-    bool_vec = ((df.x_real < -40) & (df.x_real > 40)).values
+    bool_vec = ((df.x_real > -50) & (df.x_real < 50)).values
     borders = np.where(np.diff(bool_vec))[0]  #gibt array mit den positionen bei einem übergang, also von true (1) zu false (0) bei filter_conditon und umgekehrt mithilfe der differenz der benachbarten einträge
     outer = [0, *borders+1, bool_vec.shape[0]+1]
     df = df.reset_index()
@@ -149,7 +166,7 @@ def get_retinal_speed(series):
     round_retinal_speed = round(retinal_speed, 1)
     return round_retinal_speed
 
-# hier kommt die Funktion, die ich Dir gezeigt hatte
+#TODO: tatsächliche Schwimmhöhe nehmen, also richtig machen (?)
 def calc_actual_retinal_speed(df):
     ypos = df.y_real_mean
     stim_vel = df.u_lin_velocity
@@ -167,9 +184,9 @@ def get_spat_freq(series):
 
 
 def calc_temp_freq(df):
-    räuml_per_mm = df.u_spat_period # Umlaute und Sonderzeichen (ausser "_") sind beim Programmieren keine gute Idee
+    raeuml_per_mm = df.u_spat_period # Umlaute und Sonderzeichen (ausser "_") sind beim Programmieren keine gute Idee
     v_mm_s = df.u_lin_velocity
-    periodendauerT_s = räuml_per_mm / v_mm_s
+    periodendauerT_s = raeuml_per_mm / v_mm_s
     temp_freq_1_s = 1 / periodendauerT_s
     return temp_freq_1_s
 
@@ -200,6 +217,24 @@ def calc_real_world_x(df):
     x_new = df.x_real_mean + correction
     return x_new
 
+def get_angular_gain_mean(df):
+    return df.angular_gain.mean()
+def get_absolute_gain_mean(df):
+    return df.absolute_gain.mean()
+def get_spat_frequency_mean(df):
+    return df.spat_frequency.mean()
+def get_temp_freq_mean(df):
+    return df.temp_freq.mean()
+def get_temp_freq_magnitude_mean(df):
+    return df.temp_freq_magnitude.mean()
+def get_retinal_speed_mean(df):
+    return df.retinal_speed.mean()
+def get_retinal_speed_magnitude_mean(df):
+    return df.retinal_speed_magnitude.mean()
+def get_waterheight_mean(df):
+    return df.water_height.mean()
+def get_u_lin_velocity(df):
+    return df.u_lin_velocity.unique()[0]
 
 
 if __name__ == '__main__':
@@ -210,7 +245,7 @@ if __name__ == '__main__':
         classify_fish.probability_threshold = 0.75
         classify_fish.annot_path = 'annotations'
 
-        Df = filter_fish(load_summary('data/Summary.h5'))
+        Df = filter_fish(load_summary('//172.25.250.112/arrenberg_data/shared/Sara_Widera/Ausgewertet/Summary.h5'))
         #Df = pd.read_hdf(os.path.join(base_folder, 'Summary.h5'), 'all')
 
         # Calculate real positions and add water height
@@ -219,12 +254,19 @@ if __name__ == '__main__':
         Df['y_real'] = [p[1] for p in positions]
         Df['water_height'] = Df.apply(get_waterlevel, axis=1)
 
-
-        # Group by particle
+        # Group by particle, damit darunter nicht unbekannt
         grps = Df.groupby(['folder', 'phase_name', 'particle'])
+
+        # import IPython
+        # IPython.embed()
+        # Df2 = Df[0:5000]
+        # Df2.to_excel('SubparticleTest.xlsx')
 
         # Split particles at side lines
         Df = grps.apply(make_subparticles).reset_index(drop=True)
+
+        # Df2 = Df[0:5000]
+        # Df2.to_excel('SubparticleTest.xlsx')
 
         # Group by subparticle
         grps = Df.groupby(['folder', 'phase_name', 'particle', 'subparticle'])
@@ -255,19 +297,10 @@ if __name__ == '__main__':
         Df['temp_freq'] = Df.apply(calc_temp_freq, axis=1)
         Df['temp_freq_magnitude'] = Df.apply(get_temp_freq_magnitude, axis=1)
         Df['actual_retinal_speed'] = Df.apply(calc_actual_retinal_speed, axis=1)
+        # Df.to_csv('Df.csv')
 
-        # Filter out all fish at the start side
-
-        # TODO: Das hier geht so nicht. Die Fische an den Raendern duerfen nur in Richtung der Stimulus-Bewegung gefiltert werden.
-        #  Andernfalls filterst Du hier auch alle Fische raus, die wegen einem nicht-relevanten Stimulus an der Startposition bleiben
-        # Df = Df[(Df.x_real_mean > -50) & (Df.x_real_mean < 50)]
-
-        # TODO: Besser waere es so:
-        # Ich weiss nicht ob u_lin_velocity < 0. links oder rechts bedeutet, das hier muesstest Du entsprechend anpassen
-        # Also falls z.B. u_lin_velocity < 0. links ist, dann muesste es wie folgt aussehen:
+        # Filter out all fish at the arrival side
         Df = Df[(Df['u_lin_velocity'] < 0.) & (Df.x_real_mean < 50.) | (Df['u_lin_velocity'] > 0.) & (Df.x_real_mean > -50.)]
-        # Andernfalls muessten die Bedingungen umgedreht werden:
-        # Df = Df[(Df['u_lin_velocity'] > 0.) & (Df.x_real_mean < 50.) | (Df['u_lin_velocity'] < 0.) & (Df.x_real_mean > -50.)]
 
         # Filter out all blank phases
         Df = Df[np.isfinite(Df.u_lin_velocity)]
@@ -275,24 +308,39 @@ if __name__ == '__main__':
         # Filter out all coralling stimulus phases
         Df = Df[np.logical_not((np.isclose(Df.u_lin_velocity, 60.)) | (np.isclose(Df.u_lin_velocity, 75.)) | (np.isclose(Df.u_lin_velocity, 100.)))]
 
+
+        # save
         Df.to_hdf('Summary_final.h5', 'all')
         Df.to_excel('Summary_final.xlsx')
 
     Df = pd.read_hdf('Summary_final.h5', 'all')
+    # Df_gain_heat = pd.read_hdf('Summary_final.h5', 'all')
 
-
+    # create Df for Tims figure (GAIN heatmaplike): gruppieren vom Ausgangsdatensatz und in neues df speichern
+    grps_heat = Df.groupby(['water_height', 'spat_frequency', 'temp_freq'])
+    Df_gain_heat = pd.DataFrame()
+    Df_gain_heat['angular_gain_mean'] = grps_heat.apply(get_angular_gain_mean)
+    Df_gain_heat['absolute_gain_mean'] = grps_heat.apply(get_absolute_gain_mean)
+    Df_gain_heat['spat_frequency_mean'] = grps_heat.apply(get_spat_frequency_mean)
+    Df_gain_heat['temp_freq_mean'] = grps_heat.apply(get_temp_freq_mean)
+    Df_gain_heat['temp_freq_magnitude_mean'] = grps_heat.apply(get_temp_freq_magnitude_mean)
+    Df_gain_heat['retinal_speed_mean'] = grps_heat.apply(get_retinal_speed_mean)
+    Df_gain_heat['retinal_speed_magnitude_mean'] = grps_heat.apply(get_retinal_speed_magnitude_mean)
+    Df_gain_heat['water_height_mean'] = grps_heat.apply(get_waterheight_mean)
+    Df_gain_heat['u_lin_velocity'] = grps_heat.apply(get_u_lin_velocity)
 
 # FILTERED DATA FOR FIGURES:
 
     all_abs_velo = Df[(np.isclose(Df.u_lin_velocity, 28) | np.isclose(Df.u_lin_velocity, 143) | np.isclose(Df.u_lin_velocity, 286) | np.isclose(Df.u_lin_velocity, -28) | np.isclose(Df.u_lin_velocity, -143) | np.isclose(Df.u_lin_velocity, -286))]
+    Heat_all_abs_velo = Df_gain_heat[(np.isclose(Df_gain_heat.u_lin_velocity, 28) | np.isclose(Df_gain_heat.u_lin_velocity, 143) | np.isclose(Df_gain_heat.u_lin_velocity, 286) | np.isclose(Df_gain_heat.u_lin_velocity, -28) | np.isclose(Df_gain_heat.u_lin_velocity, -143) | np.isclose(Df_gain_heat.u_lin_velocity, -286))]
 
     an_velo25 = Df[np.isclose(Df.u_lin_velocity, 13.3) | np.isclose(Df.u_lin_velocity, 26.6) | np.isclose(Df.u_lin_velocity, 53.2) | np.isclose(Df.u_lin_velocity, -13.3) | np.isclose(Df.u_lin_velocity, -26.6) | np.isclose(Df.u_lin_velocity, -53.2)]
     an_velo50 = Df[((np.isclose(Df.water_height, 30)) & (np.isclose(Df.u_lin_velocity, 28))) | np.isclose(Df.u_lin_velocity, 56) | np.isclose(Df.u_lin_velocity, 111.9) | ((np.isclose(Df.water_height, 30)) & (np.isclose(Df.u_lin_velocity, -28))) | np.isclose(Df.u_lin_velocity, -56) | np.isclose(Df.u_lin_velocity, -111.9)]
     an_velo100 = Df[((np.isclose(Df.water_height, 120)) & (np.isclose(Df.u_lin_velocity, 286))) | ((np.isclose(Df.water_height, 60)) & (np.isclose(Df.u_lin_velocity, 143))) | np.isclose(Df.u_lin_velocity, 71.5) | ((np.isclose(Df.water_height, 120)) & (np.isclose(Df.u_lin_velocity, -286))) | ((np.isclose(Df.water_height, 60)) & (np.isclose(Df.u_lin_velocity, -143))) | np.isclose(Df.u_lin_velocity, -71.5)]
     all_an_velo = Df[np.isclose(Df.u_lin_velocity, 13.3) | np.isclose(Df.u_lin_velocity, 26.6) | np.isclose(Df.u_lin_velocity, 53.2) | np.isclose(Df.u_lin_velocity, -13.3) | np.isclose(Df.u_lin_velocity, -26.6) | np.isclose(Df.u_lin_velocity, -53.2) | ((np.isclose(Df.water_height, 30)) & (np.isclose(Df.u_lin_velocity, 28))) | np.isclose(Df.u_lin_velocity, 56) | np.isclose(Df.u_lin_velocity, 111.9) | ((np.isclose(Df.water_height, 30)) & (np.isclose(Df.u_lin_velocity, -28))) | np.isclose(Df.u_lin_velocity, -56) | np.isclose(Df.u_lin_velocity, -111.9) | ((np.isclose(Df.water_height, 120)) & (np.isclose(Df.u_lin_velocity, 286))) | ((np.isclose(Df.water_height, 60)) & (np.isclose(Df.u_lin_velocity, 143))) | np.isclose(Df.u_lin_velocity, 71.5) | ((np.isclose(Df.water_height, 120)) & (np.isclose(Df.u_lin_velocity, -286))) | ((np.isclose(Df.water_height, 60)) & (np.isclose(Df.u_lin_velocity, -143))) | np.isclose(Df.u_lin_velocity, -71.5)]
+    Heat_all_an_velo = Df_gain_heat[np.isclose(Df_gain_heat.u_lin_velocity, 13.3) | np.isclose(Df_gain_heat.u_lin_velocity, 26.6) | np.isclose(Df_gain_heat.u_lin_velocity, 53.2) | np.isclose(Df_gain_heat.u_lin_velocity, -13.3) | np.isclose(Df_gain_heat.u_lin_velocity, -26.6) | np.isclose(Df_gain_heat.u_lin_velocity, -53.2) | ((np.isclose(Df_gain_heat.water_height_mean, 30)) & (np.isclose(Df_gain_heat.u_lin_velocity, 28))) | np.isclose(Df_gain_heat.u_lin_velocity, 56) | np.isclose(Df_gain_heat.u_lin_velocity, 111.9) | ((np.isclose(Df_gain_heat.water_height_mean, 30)) & (np.isclose(Df_gain_heat.u_lin_velocity, -28))) | np.isclose(Df_gain_heat.u_lin_velocity, -56) | np.isclose(Df_gain_heat.u_lin_velocity, -111.9) | ((np.isclose(Df_gain_heat.water_height_mean, 120)) & (np.isclose(Df_gain_heat.u_lin_velocity, 286))) | ((np.isclose(Df_gain_heat.water_height_mean, 60)) & (np.isclose(Df_gain_heat.u_lin_velocity, 143))) | np.isclose(Df_gain_heat.u_lin_velocity, 71.5) | ((np.isclose(Df_gain_heat.water_height_mean, 120)) & (np.isclose(Df_gain_heat.u_lin_velocity, -286))) | ((np.isclose(Df_gain_heat.water_height_mean, 60)) & (np.isclose(Df_gain_heat.u_lin_velocity, -143))) | np.isclose(Df_gain_heat.u_lin_velocity, -71.5)]
 
     an_velo25_50 = Df[((np.isclose(Df.water_height, 30)) & (np.isclose(Df.u_lin_velocity, 28))) | np.isclose(Df.u_lin_velocity, 56) | np.isclose(Df.u_lin_velocity, 111.9) | ((np.isclose(Df.water_height, 30)) & (np.isclose(Df.u_lin_velocity, -28))) | np.isclose(Df.u_lin_velocity, -56) | np.isclose(Df.u_lin_velocity, -111.9) | np.isclose(Df.u_lin_velocity, 13.3) | np.isclose(Df.u_lin_velocity, 26.6) | np.isclose(Df.u_lin_velocity, 53.2) | np.isclose(Df.u_lin_velocity, -13.3) | np.isclose(Df.u_lin_velocity, -26.6) | np.isclose(Df.u_lin_velocity, -53.2)]
-
 
     freq4 = Df[np.isclose(Df.spat_frequency, 0.04)]
     freq2 = Df[np.isclose(Df.spat_frequency, 0.02)]
@@ -303,56 +351,75 @@ if __name__ == '__main__':
 
     an_velo25_freq2 = an_velo25[np.isclose(an_velo25.spat_frequency, 0.02)]
 
+    # wh30 = Df[(np.isclose(Df.water_height, 30))]
+    wh30 = Df_gain_heat[(np.isclose(Df_gain_heat.water_height_mean, 30))]
+    wh60 = Df_gain_heat[(np.isclose(Df_gain_heat.water_height_mean, 60))]
+    wh120 = Df_gain_heat[(np.isclose(Df_gain_heat.water_height_mean, 120))]
+    Heat_abs_wh60 = Heat_all_abs_velo[(np.isclose(Heat_all_abs_velo.water_height_mean, 60))]
+    Heat_an_wh60 = Heat_all_an_velo[(np.isclose(Heat_all_an_velo.water_height_mean, 60))]
 
     import IPython
     IPython.embed()
 
     # Stats = pd.DataFrame(grp_df2, columns = ['folder', 'phase_name', 'particle', 'u_lin_velocity', 'frame_count', 'x_vel', 'x_vel_magnitude', 'absolute_gain', 'angular_gain', 'y_world', 'water_height', 'retinal_speed', 'retinal_speed_magnitude', 'spat_frequency'])
-    # grp_df2.to_excel(r'F:\Sara_Widera\statistics.xlsx', index=False, header=True)
+    # grp_df2.to_excel(r'F:\Sara_Widera\statistics.xlsx', index=True, header=True)
+
 
 # FIGURES FOR THESIS:
 
 #1 GAIN TUNING FUNCTIONS
     # absolute Gain
     ax = sns.relplot(data=Df, x='retinal_speed', y='absolute_gain', hue='water_height', palette='dark', col='spat_frequency', kind='line')
-    ax.set(xlabel='retinal speed [°/s]', ylabel='absolute gain', title='tuning function (all data)')
+    ax.set(xlabel='retinal speed [deg/sec]', ylabel='absolute gain')
+    ax.set_titles('{col_var} = {col_name} cyc/deg')
 
     # relative Gain
     ax = sns.relplot(data=Df, x='retinal_speed', y='angular_gain', hue='water_height', palette='dark', col='spat_frequency', kind='line')
-    ax.set(xlabel='retinal speed [°/s]', ylabel='relative gain', title='tuning function (all data)')
+    ax.set(xlabel='retinal speed [deg/sec]', ylabel='relative gain')
+    ax.set_titles('{col_var} = {col_name} cyc/deg')
+
 
 #tuning func für alle angular und für alle absoluten velos?
 
 #2 GAIN AT DIFFERENT STIMULUS SPEEDS
     #(overview)
     ax = sns.relplot(data=Df, x='retinal_speed', y='absolute_gain', hue='water_height', palette='dark', col='spat_frequency')
-    ax.set(xlabel='(all angular velocities) retinal speed [°/s]', ylabel='absolute gain')
+    ax.set(xlabel='(all angular velocities) retinal speed [deg/sec]', ylabel='absolute gain')
+    ax.set_titles('{col_var} = {col_name} cyc/deg')
 
     # violin plot: absolute Gain, angular velocities, freq 0.02
-    ax = sns.violinplot(data=an_velo_freq2, x='retinal_speed', y='absolute_gain', hue='water_height')
-    ax.set(xlabel='retinal speed [°/s]', ylabel='absolute gain')
-    ax.set_title('all angular velocities at spat freq 0.02 c/°')
+    ax = sns.violinplot(data=an_velo_freq2, x='retinal_speed_magnitude', y='absolute_gain', hue='water_height')
+    ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='absolute gain', title='all angular velocities at spat freq 0.02 cyc/deg')
 
     # violin plot: absolute Gain, absolute velocities, freq 0.02
-    ax = sns.violinplot(data=abs_velo_freq2, x='retinal_speed', y='absolute_gain', hue='water_height')
-    ax.set(xlabel='retinal speed [°/s]', ylabel='absolute gain', title='all absolute velocities at spat freq 0.02 c/°')
+    ax = sns.violinplot(data=abs_velo_freq2, x='retinal_speed_magnitude', y='absolute_gain', hue='water_height')
+    ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='absolute gain', title='all absolute velocities at spat freq 0.02 cyc/deg')
 
+    # violin plot: relative Gain, angular velocities, freq 0.02
+    ax = sns.violinplot(data=an_velo_freq2, x='retinal_speed_magnitude', y='angular_gain', hue='water_height')
+    ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='relative gain', title='all angular velocities at spat freq 0.02 cyc/deg')
+
+    # violin plot: relative Gain, absolute velocities, freq 0.02
+    ax = sns.violinplot(data=abs_velo_freq2, x='retinal_speed_magnitude', y='angular_gain', hue='water_height')
+    ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='relative gain', title='all absolute velocities at spat freq 0.02 cyc/deg')
 
     # absolute Gain, angular velocities gepoolt (spat_freq = 0.02)
     ax = sns.relplot(data=an_velo_freq2, x='retinal_speed_magnitude', y='absolute_gain', hue='water_height', palette='dark', col='spat_frequency', kind='line')
-    ax.set(xlabel='magnitude of retinal speed [°/s]', ylabel='absolute gain', title='all angular velocities at spatial frequency 0.02 c/°')
+    ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='absolute gain') #title='all angular velocities at spatial frequency 0.02 cyc/deg'
+    ax.set_titles('{col_var} = {col_name} cyc/deg')
+
 
     # relative Gain, angular velocities gepoolt (spat_freq = 0.02)
     ax = sns.relplot(data=an_velo_freq2, x='retinal_speed_magnitude', y='angular_gain', hue='water_height', palette='dark', col='spat_frequency', kind='line')
-    ax.set(xlabel='magnitude of retinal speed [°/s]', ylabel='relative gain', title='all angular velocities at spatial frequency 0.02 c/°')
+    ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='relative gain', title='all angular velocities at spatial frequency 0.02 cyc/deg')
 
     # absolute Gain, absolute velocities gepoolt (spat_freq = 0.02)
     ax = sns.relplot(data=abs_velo_freq2, x='retinal_speed_magnitude', y='absolute_gain', hue='water_height', palette='dark', col='spat_frequency', kind='line')
-    ax.set(xlabel='magnitude of retinal speed [°/s]', ylabel='absolute gain',  title='all absolute velocities at spatial frequency 0.02 c/°')
+    ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='absolute gain',  title='all absolute velocities at spatial frequency 0.02 cyc/deg')
 
     # relative Gain, absolute velocities gepoolt (spat_freq = 0.02)
     ax = sns.relplot(data=abs_velo_freq2, x='retinal_speed_magnitude', y='angular_gain', hue='water_height', palette='dark', col='spat_frequency', kind='line')
-    ax.set(xlabel='magnitude of retinal speed [°/s]', ylabel='relative gain', title='all absolute velocities at spatial frequency 0.02 c/°')
+    ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='relative gain', title='all absolute velocities at spatial frequency 0.02 cyc/deg')
 
 
 #3 GAIN AT DIFFERENT WATER_HEIGHTS
@@ -390,17 +457,56 @@ if __name__ == '__main__':
 
 
 #7 GAIN COLOURMAP: SPAT FREQ, TEMP FREQ, RETINAL SPEED
-    sns.set()
-    ax = sns.scatterplot(data=Df, x="retinal_speed_magnitude", y="temp_freq_magnitude", hue="angular_gain", palette='gist_rainbow')
-    norm = plt.Normalize(Df['angular_gain'].min(), Df['angular_gain'].max())
-    sm = plt.cm.ScalarMappable(cmap="gist_rainbow", norm=norm)
-    sm.set_array([])
-    # Remove the legend and add a colorbar
-    ax.get_legend().remove()
-    ax.figure.colorbar(sm)
+#----> TIMs COLOURMAP :)
+    sns.set_theme()
+    heatmap_size = (12.5, 11.5)
+
+    cmap_scheme = 'viridis' #turbo
+    markersize = 17
+
+    fig = custom_fig('absolute Gain for spat & temp freq at waterheight 30mm', heatmap_size)
+    ax = fig.add_subplot(1, 1, 1)
+    ax.semilogy([],[])
+    # add colorbar
+    minval = np.floor(np.min(wh30['angular_gain_mean']) * 10) / 10
+    maxval = np.ceil(np.max(wh30['angular_gain_mean']) * 10) / 10
+    zticks = np.arange(minval, maxval + 0.01, 0.1)
+    cax = ax.imshow(np.concatenate((zticks, zticks)).reshape((2, -1)), interpolation='nearest', cmap=cmap_scheme)
+    cbar = fig.colorbar(cax, ticks=zticks)
+    cbar.ax.set_ylabel('angular gain at 30mm water height')
+    cmap = np.asarray(cbar.cmap.colors)
+    valmap = np.arange(minval, maxval, (maxval - minval) / cmap.shape[0])
+    plt.cla()  # clears imshow plot, but keeps the colorbar
+
+    for sfreq, tfreq, gain in zip(wh30['spat_frequency_mean'], wh30['temp_freq_mean'], wh30['angular_gain_mean']):
+        plot_colorpoint(ax, sfreq, tfreq, gain, cmap, valmap)
+
+    xlim = [0.008, 0.1]
+    ylim = [-20, 40]
+
+    ax.set_xlabel('spatial frequency [cyc/deg]')
+    ax.set_ylabel('temporal frequency [cyc/sec]')
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    adjust_spines(ax)
+
+    fig.savefig('../absolute_gain_heatmap_wh30.svg', format='svg')
+
     plt.show()
 
-
+''''Accent', 'Accent_r', 'Blues', 'Blues_r', 'BrBG', 'BrBG_r', 'BuGn', 'BuGn_r', 'BuPu', 'BuPu_r', 'CMRmap'
+, 'CMRmap_r', 'Dark2', 'Dark2_r', 'GnBu', 'GnBu_r', 'Greens', 'Greens_r', 'Greys', 'Greys_r', 'OrRd', 'OrRd_r', 'Oranges', 'Oranges_r', 'PRGn', 'PRGn_r', 'Paired', 'Paired_r',
+ 'Pastel1', 'Pastel1_r', 'Pastel2', 'Pastel2_r', 'PiYG', 'PiYG_r', 'PuBu', 'PuBuGn', 'PuBuGn_r', 'PuBu_r', 'PuOr', 'PuOr_r', 'PuRd', 'PuRd_r', 'Purples', 'Purples_r', 'RdBu',
+'RdBu_r', 'RdGy', 'RdGy_r', 'RdPu', 'RdPu_r', 'RdYlBu', 'RdYlBu_r', 'RdYlGn', 'RdYlGn_r', 'Reds', 'Reds_r', 'Set1', 'Set1_r', 'Set2', 'Set2_r', 'Set3', 'Set3_r', 'Spectral', '
+Spectral_r', 'Wistia', 'Wistia_r', 'YlGn', 'YlGnBu', 'YlGnBu_r', 'YlGn_r', 'YlOrBr', 'YlOrBr_r', 'YlOrRd', 'YlOrRd_r', 'afmhot', 'afmhot_r', 'autumn', 'autumn_r', 'binary', 'b
+inary_r', 'bone', 'bone_r', 'brg', 'brg_r', 'bwr', 'bwr_r', 'cividis', 'cividis_r', 'cool', 'cool_r', 'coolwarm', 'coolwarm_r', 'copper', 'copper_r', 'crest', 'crest_r', 'cube
+helix', 'cubehelix_r', 'flag', 'flag_r', 'flare', 'flare_r', 'gist_earth', 'gist_earth_r', 'gist_gray', 'gist_gray_r', 'gist_heat', 'gist_heat_r', 'gist_ncar', 'gist_ncar_r',
+'gist_rainbow', 'gist_rainbow_r', 'gist_stern', 'gist_stern_r', 'gist_yarg', 'gist_yarg_r', 'gnuplot', 'gnuplot2', 'gnuplot2_r', 'gnuplot_r', 'gray', 'gray_r', 'hot', 'hot_r',
+ 'hsv', 'hsv_r', 'icefire', 'icefire_r', 'inferno', 'inferno_r', 'jet', 'jet_r', 'magma', 'magma_r', 'mako', 'mako_r', 'nipy_spectral', 'nipy_spectral_r', 'ocean', 'ocean_r',
+'pink', 'pink_r', 'plasma', 'plasma_r', 'prism', 'prism_r', 'rainbow', 'rainbow_r', 'rocket', 'rocket_r', 'seismic', 'seismic_r', 'spring', 'spring_r', 'summer', 'summer_r', '
+tab10', 'tab10_r', 'tab20', 'tab20_r', 'tab20b', 'tab20b_r', 'tab20c', 'tab20c_r', 'terrain', 'terrain_r', 'turbo', 'turbo_r', 'twilight', 'twilight_r', 'twilight_shifted', 't
+wilight_shifted_r', 'viridis', 'viridis_r', 'vlag', 'vlag_r', 'winter', 'winter_r'
+'''
 
 
 
@@ -510,5 +616,7 @@ if __name__ == '__main__':
 
     Import IPython
     IPython.embed()
+    
+    
     
     """
