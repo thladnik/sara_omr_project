@@ -141,9 +141,8 @@ def calc_angular_gain(series):
     gain = fish_vel / stim_vel
     return gain
 
-# TODO: nullen fixen
 def make_subparticles(df):
-    bool_vec = ((df.x_real > -50) & (df.x_real < 50)).values
+    bool_vec = ((df.x_real > -45) & (df.x_real < 45)).values
     borders = np.where(np.diff(bool_vec))[0]  #gibt array mit den positionen bei einem übergang, also von true (1) zu false (0) bei filter_conditon und umgekehrt mithilfe der differenz der benachbarten einträge
     outer = [0, *borders+1, bool_vec.shape[0]+1]
     df = df.reset_index()
@@ -300,7 +299,7 @@ if __name__ == '__main__':
         # Df.to_csv('Df.csv')
 
         # Filter out all fish at the arrival side
-        Df = Df[(Df['u_lin_velocity'] < 0.) & (Df.x_real_mean < 50.) | (Df['u_lin_velocity'] > 0.) & (Df.x_real_mean > -50.)]
+        Df = Df[(Df['u_lin_velocity'] < 0.) & (Df.x_real_mean < 45.) | (Df['u_lin_velocity'] > 0.) & (Df.x_real_mean > -45.)]
 
         # Filter out all blank phases
         Df = Df[np.isfinite(Df.u_lin_velocity)]
@@ -334,6 +333,8 @@ if __name__ == '__main__':
     all_abs_velo = Df[(np.isclose(Df.u_lin_velocity, 28) | np.isclose(Df.u_lin_velocity, 143) | np.isclose(Df.u_lin_velocity, 286) | np.isclose(Df.u_lin_velocity, -28) | np.isclose(Df.u_lin_velocity, -143) | np.isclose(Df.u_lin_velocity, -286))]
     Heat_all_abs_velo = Df_gain_heat[(np.isclose(Df_gain_heat.u_lin_velocity, 28) | np.isclose(Df_gain_heat.u_lin_velocity, 143) | np.isclose(Df_gain_heat.u_lin_velocity, 286) | np.isclose(Df_gain_heat.u_lin_velocity, -28) | np.isclose(Df_gain_heat.u_lin_velocity, -143) | np.isclose(Df_gain_heat.u_lin_velocity, -286))]
 
+    anvel25 = Df[np.isclose(Df.retinal_speed, 25, atol=0.3, rtol=0.3)]
+
     an_velo25 = Df[np.isclose(Df.u_lin_velocity, 13.3) | np.isclose(Df.u_lin_velocity, 26.6) | np.isclose(Df.u_lin_velocity, 53.2) | np.isclose(Df.u_lin_velocity, -13.3) | np.isclose(Df.u_lin_velocity, -26.6) | np.isclose(Df.u_lin_velocity, -53.2)]
     an_velo50 = Df[((np.isclose(Df.water_height, 30)) & (np.isclose(Df.u_lin_velocity, 28))) | np.isclose(Df.u_lin_velocity, 56) | np.isclose(Df.u_lin_velocity, 111.9) | ((np.isclose(Df.water_height, 30)) & (np.isclose(Df.u_lin_velocity, -28))) | np.isclose(Df.u_lin_velocity, -56) | np.isclose(Df.u_lin_velocity, -111.9)]
     an_velo100 = Df[((np.isclose(Df.water_height, 120)) & (np.isclose(Df.u_lin_velocity, 286))) | ((np.isclose(Df.water_height, 60)) & (np.isclose(Df.u_lin_velocity, 143))) | np.isclose(Df.u_lin_velocity, 71.5) | ((np.isclose(Df.water_height, 120)) & (np.isclose(Df.u_lin_velocity, -286))) | ((np.isclose(Df.water_height, 60)) & (np.isclose(Df.u_lin_velocity, -143))) | np.isclose(Df.u_lin_velocity, -71.5)]
@@ -366,133 +367,14 @@ if __name__ == '__main__':
 
 
 # FIGURES FOR THESIS:
-
-#1 GAIN TUNING FUNCTIONS
-    # absolute Gain
-    ax = sns.relplot(data=Df, x='retinal_speed', y='absolute_gain', hue='water_height', palette='dark', col='spat_frequency', kind='line')
-    ax.set(xlabel='retinal speed [deg/sec]', ylabel='absolute gain')
-    ax.set_titles('{col_var} = {col_name} cyc/deg')
-
-    # relative Gain
-    ax = sns.relplot(data=Df, x='retinal_speed', y='angular_gain', hue='water_height', palette='dark', col='spat_frequency', kind='line')
-    ax.set(xlabel='retinal speed [deg/sec]', ylabel='relative gain')
-    ax.set_titles('{col_var} = {col_name} cyc/deg')
-
-
-#tuning func für alle angular und für alle absoluten velos?
-
-#2 GAIN AT DIFFERENT STIMULUS SPEEDS
-    #(overview)
-    ax = sns.relplot(data=Df, x='retinal_speed', y='absolute_gain', hue='water_height', palette='dark', col='spat_frequency')
-    ax.set(xlabel='(all angular velocities) retinal speed [deg/sec]', ylabel='absolute gain')
-    ax.set_titles('{col_var} = {col_name} cyc/deg')
-
-    # violin plot: absolute Gain, angular velocities, freq 0.02
-    ax = sns.violinplot(data=an_velo_freq2, x='retinal_speed_magnitude', y='absolute_gain', hue='water_height')
-    ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='absolute gain', title='all angular velocities at spat freq 0.02 cyc/deg')
-
-    # violin plot: absolute Gain, absolute velocities, freq 0.02
-    ax = sns.violinplot(data=abs_velo_freq2, x='retinal_speed_magnitude', y='absolute_gain', hue='water_height')
-    ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='absolute gain', title='all absolute velocities at spat freq 0.02 cyc/deg')
-
-    # violin plot: relative Gain, angular velocities, freq 0.02
-    ax = sns.violinplot(data=an_velo_freq2, x='retinal_speed_magnitude', y='angular_gain', hue='water_height')
-    ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='relative gain', title='all angular velocities at spat freq 0.02 cyc/deg')
-
-    # violin plot: relative Gain, absolute velocities, freq 0.02
-    ax = sns.violinplot(data=abs_velo_freq2, x='retinal_speed_magnitude', y='angular_gain', hue='water_height')
-    ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='relative gain', title='all absolute velocities at spat freq 0.02 cyc/deg')
-
-    # absolute Gain, angular velocities gepoolt (spat_freq = 0.02)
-    ax = sns.relplot(data=an_velo_freq2, x='retinal_speed_magnitude', y='absolute_gain', hue='water_height', palette='dark', col='spat_frequency', kind='line')
-    ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='absolute gain') #title='all angular velocities at spatial frequency 0.02 cyc/deg'
-    ax.set_titles('{col_var} = {col_name} cyc/deg')
-
-
-    # relative Gain, angular velocities gepoolt (spat_freq = 0.02)
-    ax = sns.relplot(data=an_velo_freq2, x='retinal_speed_magnitude', y='angular_gain', hue='water_height', palette='dark', col='spat_frequency', kind='line')
-    ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='relative gain', title='all angular velocities at spatial frequency 0.02 cyc/deg')
-
-    # absolute Gain, absolute velocities gepoolt (spat_freq = 0.02)
-    ax = sns.relplot(data=abs_velo_freq2, x='retinal_speed_magnitude', y='absolute_gain', hue='water_height', palette='dark', col='spat_frequency', kind='line')
-    ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='absolute gain',  title='all absolute velocities at spatial frequency 0.02 cyc/deg')
-
-    # relative Gain, absolute velocities gepoolt (spat_freq = 0.02)
-    ax = sns.relplot(data=abs_velo_freq2, x='retinal_speed_magnitude', y='angular_gain', hue='water_height', palette='dark', col='spat_frequency', kind='line')
-    ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='relative gain', title='all absolute velocities at spatial frequency 0.02 cyc/deg')
-
-
-#3 GAIN AT DIFFERENT WATER_HEIGHTS
-    # absolute Gain,
-    ax = sns.relplot(data=an_velo25, x='water_height', y='absolute_gain', hue='spat_frequency', palette='dark', col='retinal_speed', kind='line')
-    ax.set(xlabel='an_velo25: water_height [mm]', ylabel='absolute gain', title='angular velocity 25 °/s')
-    # relative Gain,
-    ax = sns.relplot(data=an_velo25, x='water_height', y='angular_gain', hue='spat_frequency', palette='dark', col='retinal_speed', kind='line')
-    ax.set(xlabel='an_velo25: water_height [mm]', ylabel='angular gain', title='angular velocity 25 °/s')
-
-
-#4 FISH VELOCITY AT DIFFERENT WATER_HEIGHTS (Hypothesis)
-    # spat_freq = 0.02, all angular velocities
-    ax = sns.relplot(data=an_velo25_freq2, x='water_height', y='x_vel', hue='spat_frequency', palette='dark', col='retinal_speed', kind='line')
-    ax.set(xlabel='an_velo25_freq2: water_height [mm]', ylabel='swimming velocity [mm/s]', title='angular velocity 25 °/s at spatial frequency 0.02 c/°')
-
-    ax = sns.relplot(data=an_velo_freq2, x='water_height', y='x_vel_magnitude', hue='retinal_speed', palette='dark', col='retinal_speed_magnitude', kind='line')
-    ax.set(xlabel='an_velo_freq2: water_height [mm]', ylabel='magnitude of swimming velocity [mm/s]', title='all angular velocities at spatial frequency 0.02 c/°')
-
-    # spat_freq = 0.02, all absolute velocities
-
-    ax = sns.relplot(data=Df, x='retinal_speed_magnitude', y='y_world', hue='water_height', palette='dark', col='spat_frequency', kind='line')
-# Fish velocity at different speeds
-
+# alle in einzelnen Skripten bis auf diese:
 
 #5 TUNING FOR SWIMMING SPEED
     ax = sns.relplot(data=Df, x='retinal_speed', y='x_vel', hue='water_height', palette='dark', col='spat_frequency', kind='line')
     ax.set(xlabel='retinal speed [°/s]', ylabel='y-position [mm]')
+# todo: wenn, dann poolen...
 
 
-#6 Y POSITION (WORLD) AT DIFFERENT RETINAL SPEEDS
-    ax = sns.relplot(data=Df, x='retinal_speed', y='y_world', hue='water_height', palette='dark', col='spat_frequency', kind='line')
-    ax.set(xlabel='retinal speed [°/s]', ylabel='y-position [mm]')
-    ax = sns.relplot(data=an_velo25_50, x='temp_freq_magnitude', y='x_vel', hue='retinal_speed_magnitude', palette='dark', col='water_height', kind='line')
-
-
-#7 GAIN COLOURMAP: SPAT FREQ, TEMP FREQ, RETINAL SPEED
-#----> TIMs COLOURMAP :)
-    sns.set_theme()
-    heatmap_size = (12.5, 11.5)
-
-    cmap_scheme = 'viridis' #turbo
-    markersize = 17
-
-    fig = custom_fig('absolute Gain for spat & temp freq at waterheight 30mm', heatmap_size)
-    ax = fig.add_subplot(1, 1, 1)
-    ax.semilogy([],[])
-    # add colorbar
-    minval = np.floor(np.min(wh30['angular_gain_mean']) * 10) / 10
-    maxval = np.ceil(np.max(wh30['angular_gain_mean']) * 10) / 10
-    zticks = np.arange(minval, maxval + 0.01, 0.1)
-    cax = ax.imshow(np.concatenate((zticks, zticks)).reshape((2, -1)), interpolation='nearest', cmap=cmap_scheme)
-    cbar = fig.colorbar(cax, ticks=zticks)
-    cbar.ax.set_ylabel('angular gain at 30mm water height')
-    cmap = np.asarray(cbar.cmap.colors)
-    valmap = np.arange(minval, maxval, (maxval - minval) / cmap.shape[0])
-    plt.cla()  # clears imshow plot, but keeps the colorbar
-
-    for sfreq, tfreq, gain in zip(wh30['spat_frequency_mean'], wh30['temp_freq_mean'], wh30['angular_gain_mean']):
-        plot_colorpoint(ax, sfreq, tfreq, gain, cmap, valmap)
-
-    xlim = [0.008, 0.1]
-    ylim = [-20, 40]
-
-    ax.set_xlabel('spatial frequency [cyc/deg]')
-    ax.set_ylabel('temporal frequency [cyc/sec]')
-    ax.set_xlim(xlim)
-    ax.set_ylim(ylim)
-    adjust_spines(ax)
-
-    fig.savefig('../absolute_gain_heatmap_wh30.svg', format='svg')
-
-    plt.show()
 
 ''''Accent', 'Accent_r', 'Blues', 'Blues_r', 'BrBG', 'BrBG_r', 'BuGn', 'BuGn_r', 'BuPu', 'BuPu_r', 'CMRmap'
 , 'CMRmap_r', 'Dark2', 'Dark2_r', 'GnBu', 'GnBu_r', 'Greens', 'Greens_r', 'Greys', 'Greys_r', 'OrRd', 'OrRd_r', 'Oranges', 'Oranges_r', 'PRGn', 'PRGn_r', 'Paired', 'Paired_r',

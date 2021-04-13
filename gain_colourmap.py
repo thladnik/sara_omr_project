@@ -17,6 +17,7 @@ from analyse_df import *
 
 # GAIN COLOURMAP: SPAT FREQ, TEMP FREQ, RETINAL SPEED
 # alles ANGULAR gain
+# todo auch für absolute gain
 
 # load Data
 base_folder = './data/'
@@ -171,5 +172,84 @@ ax.set_ylim(ylim)
 adjust_spines(ax)
 
 fig.savefig('../absolute_gain_heatmap_wh120.svg', format='svg')
+
+plt.show()
+
+
+
+
+# Waterheight 60mm getrennte Velos
+# absolute velocites
+
+sns.set_theme()
+heatmap_size = (12.5, 11.5)
+
+cmap_scheme = 'viridis'  # turbo
+markersize = 17
+
+fig = custom_fig('absolute Gain for spat & temp freq at waterheight 60mm', heatmap_size)
+ax = fig.add_subplot(1, 1, 1)
+ax.semilogy([] ,[])
+# add colorbar
+minval = np.floor(np.min(Heat_abs_wh60['angular_gain_mean']) * 10) / 10
+maxval = np.ceil(np.max(Heat_abs_wh60['angular_gain_mean']) * 10) / 10
+zticks = np.arange(minval, maxval + 0.01, 0.1)
+cax = ax.imshow(np.concatenate((zticks, zticks)).reshape((2, -1)), interpolation='nearest', cmap=cmap_scheme)
+cbar = fig.colorbar(cax, ticks=zticks)
+cbar.ax.set_ylabel('angular gain at 60mm water height')
+cmap = np.asarray(cbar.cmap.colors)
+valmap = np.arange(minval, maxval, (maxval - minval) / cmap.shape[0])
+plt.cla()  # clears imshow plot, but keeps the colorbar
+
+for sfreq, tfreq, gain in zip(Heat_abs_wh60['spat_frequency_mean'], Heat_abs_wh60['temp_freq_mean'], Heat_abs_wh60['angular_gain_mean']):
+    plot_colorpoint(ax, sfreq, tfreq, gain, cmap, valmap)
+
+xlim = [0.008, 0.1]
+ylim = [-20, 40]
+
+ax.set_xlabel('spatial frequency [cyc/deg]')
+ax.set_ylabel('temporal frequency [cyc/sec]')
+ax.set_xlim(xlim)
+ax.set_ylim(ylim)
+adjust_spines(ax)
+
+
+plt.show()
+
+
+# angular velocites
+
+sns.set_theme()
+heatmap_size = (12.5, 11.5)
+
+cmap_scheme = 'viridis'  # turbo
+markersize = 17
+
+fig = custom_fig('absolute Gain for spat & temp freq at waterheight 60mm', heatmap_size)
+ax = fig.add_subplot(1, 1, 1)
+ax.semilogy([] ,[])
+# add colorbar
+minval = np.floor(np.min(Heat_an_wh60['angular_gain_mean']) * 10) / 10
+maxval = np.ceil(np.max(Heat_an_wh60['angular_gain_mean']) * 10) / 10
+zticks = np.arange(minval, maxval + 0.01, 0.1)
+cax = ax.imshow(np.concatenate((zticks, zticks)).reshape((2, -1)), interpolation='nearest', cmap=cmap_scheme)
+cbar = fig.colorbar(cax, ticks=zticks)
+cbar.ax.set_ylabel('angular gain at 60mm water height')
+cmap = np.asarray(cbar.cmap.colors)
+valmap = np.arange(minval, maxval, (maxval - minval) / cmap.shape[0])
+plt.cla()  # clears imshow plot, but keeps the colorbar
+
+for sfreq, tfreq, gain in zip(Heat_an_wh60['spat_frequency_mean'], Heat_an_wh60['temp_freq_mean'], Heat_an_wh60['angular_gain_mean']):
+    plot_colorpoint(ax, sfreq, tfreq, gain, cmap, valmap)
+
+xlim = [0.008, 0.1]
+ylim = [-20, 40]
+
+ax.set_xlabel('spatial frequency [cyc/deg]')
+ax.set_ylabel('temporal frequency [cyc/sec]')
+ax.set_xlim(xlim)
+ax.set_ylim(ylim)
+adjust_spines(ax)
+
 
 plt.show()
