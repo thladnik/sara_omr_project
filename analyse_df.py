@@ -7,12 +7,6 @@ from classify_fish import filter_fish, load_summary
 import seaborn as sns
 import sys
 
-from auxfuns import *
-import matplotlib as mpl
-from scipy.stats import sem
-from time import sleep
-import scipy.io as scio
-
 
 dict_waterlevel = {'rec_2020-12-17-13-53-27_3cm': 30, 'rec_2020-12-18-09-46-26_6cm': 60,
                    'rec_2020-12-17-14-38-13_6cm': 60, 'rec_2020-12-18-10-31-28_3cm': 30,
@@ -29,7 +23,6 @@ dict_dimensions = {'rec_2020-12-17-13-53-27_3cm': (121, 33), 'rec_2020-12-18-09-
                    'rec_2021-02-03-12-30-46_6cm': (120, 61), 'rec_2021-02-03-15-40-19_12cm': (120, 120),
                    'rec_2021-02-03-17-05-28_3cm': (120, 31)}
 
-# drei_28 = grp_df2.loc['rec_2021-02-03-17-05-28_3cm']
 
 #base_folder = '//172.25.250.112/arrenberg_data/shared/Sara_Widera/Ausgewertet'
 base_folder = './data/'
@@ -43,91 +36,11 @@ def plot_colorpoint(ax, x, y, z, cmap, valmap, fontsize = 9):
     ax.text(x, y, str(round(z, 1)), fontsize=fontsize, color=fontcolor,  ha='center', va='center')
 
 
-
-def calc_x_velocity(df):
-    # Calculate frame-by-frame time and x position differences
-
-    #Startzeitpunkt von allen weiteren Werten subtrahieren (time = Sek seit dem Jahre 1970)
-    # df['time'] -= df['time'].values[0]
-    # start_time = 1
-    # end_time = 30
-    # df = df[(df['time'] >= start_time) & (df['time'] < end_time)]
-
-
-    dt = df.time.diff()
-    dx = df.x_real.diff()
-
-    # Calculate velocity form position delta and time delta
-    vx = dx/dt
-
-    # Visualization (does it for each particle (MANY particles in Df) -> not for analysis
-    # plt.plot(df.time.values - df.time.values[0], vx)
-    # plt.show()
-
-    # Inspect:
-    # import IPython
-    # IPython.embed()
-
-    # Return mean x velocity for this particular particle
-    return vx.mean()
-
-def calc_y_velocity(df):
-    # Calculate frame-by-frame time and y position differences
-
-    # df['time'] -= df['time'].values[0]
-    # start_time = 1
-    # end_time = 30
-    # df = df[(df['time'] >= start_time) & (df['time'] < end_time)]
-
-    dt = df.time.diff()
-    dy = df.y_real.diff()
-    vy = dy/dt
-    # Return mean y velocity for this particular particle
-    return vy.mean()
-
-def get_real_pos(series):
-    p = np.array([series.x, series.y, 30.]) * 10. #30cm cameradistance, habe einfach x und y in mm umgerechnet
-    d = p/np.linalg.norm(p)
-    m = np.array([0., 0., 1.])
-    p_new = p + d * 25 * np.dot(m, d) #25 ist hälfte vom becken (annahme fishpos: mitte)
-    # x_new = p_new[0]
-    # y_new = p_new[1]
-    return p_new[:2]
-
-def calc_real_x(series):
-    return get_real_pos(series)[0]
-
-def calc_real_y(series):
-    return get_real_pos(series)[1]
-
-def fun_get_folder(df):
-    return df.folder.unique()[0]
-
-def fun_get_phase_name(df):
-    return df.phase_name.unique()[0]
-
-def fun_get_particle(df):
-    return df.particle.unique()[0]
-
-def fun_get_u_lin_velocity(df):
-    return df.u_lin_velocity.unique()[0]
-
-def fun_get_u_spat_period(df):
-    return df.u_spat_period.unique()[0]
-
-def get_row_count(df):
-    return df.shape[0]
-
-def get_x_real_mean(df):
-    return df.x_real.mean()
-
-def get_y_real_mean(df):
-    return df.y_real.mean()
-
 def get_waterlevel(series):
     path = series.folder.split(os.sep)
     wl = dict_waterlevel.get(path[-1])
     return wl
+
 
 def calc_absolute_gain(series):
     fish_vel = series.x_vel
@@ -135,22 +48,23 @@ def calc_absolute_gain(series):
     gain = fish_vel / stim_vel
     return gain
 
+
 def calc_angular_gain(series):
     fish_vel = series.x_vel
     stim_vel = series.retinal_speed
     gain = fish_vel / stim_vel
     return gain
 
-# TODO: nullen fixen
+
 def make_subparticles(df):
-    bool_vec = ((df.x_real > -50) & (df.x_real < 50)).values
+    bool_vec = ((df.x_real > -40) & (df.x_real < 40)).values
     borders = np.where(np.diff(bool_vec))[0]  #gibt array mit den positionen bei einem übergang, also von true (1) zu false (0) bei filter_conditon und umgekehrt mithilfe der differenz der benachbarten einträge
     outer = [0, *borders+1, bool_vec.shape[0]+1]
     df = df.reset_index()
     for id, (i, j) in enumerate(zip(outer[:-1], outer[1:])):
         df.loc[i:j, 'subparticle'] = id
-    new_df = df
-    return new_df
+    return df
+
 
 def fill_in_IDs(df):
     return pd.DataFrame({'folder': df.folder.unique(),
@@ -158,64 +72,6 @@ def fill_in_IDs(df):
                          'particle': df.particle.unique(),
                          'subparticle': df.subparticle.unique()})
 
-def get_retinal_speed(series):
-    wl = series.water_height #mm
-    stim_vel = series.u_lin_velocity #mm/s
-    rad_retinal_speed = 2*np.arctan(stim_vel/(2*wl))
-    retinal_speed = 360/(2*np.pi)*rad_retinal_speed
-    round_retinal_speed = round(retinal_speed, 1)
-    return round_retinal_speed
-
-#TODO: tatsächliche Schwimmhöhe nehmen, also richtig machen (?)
-def calc_actual_retinal_speed(df):
-    ypos = df.y_real_mean
-    stim_vel = df.u_lin_velocity
-    rad_retinal_speed = 2 * np.arctan(stim_vel / (2 * ypos))
-    speed = 360 / (2 * np.pi) * rad_retinal_speed
-    return speed
-
-
-def get_spat_freq(series):
-    wl = series.water_height
-    spat_period = series.u_spat_period
-    spat_freq = (2*np.pi) / (360*2*np.arctan(spat_period/(2*wl)))
-    round_spat_freq = round(spat_freq, 4)
-    return round_spat_freq
-
-
-def calc_temp_freq(df):
-    raeuml_per_mm = df.u_spat_period # Umlaute und Sonderzeichen (ausser "_") sind beim Programmieren keine gute Idee
-    v_mm_s = df.u_lin_velocity
-    periodendauerT_s = raeuml_per_mm / v_mm_s
-    temp_freq_1_s = 1 / periodendauerT_s
-    return temp_freq_1_s
-
-def get_temp_freq_magnitude(series):
-    magnitude = np.linalg.norm(series.temp_freq)
-    return magnitude
-
-def get_retinal_speed_magnitude(series):
-    magnitude = np.linalg.norm(series.retinal_speed)
-    return magnitude
-
-def get_u_lin_velocity_magnitude(series):
-    magnitude = np.linalg.norm(series.u_lin_velocity)
-    return magnitude
-
-def get_x_vel_magnitude(series):
-    magnitude = np.linalg.norm(series.x_vel)
-    return magnitude
-
-# hier habe ich das mit dem dictionary jetzt so gemacht:
-def calc_real_world_y(df):
-    correction = 0.5 * dict_dimensions[df.folder][1]
-    y_new = df.y_real_mean + correction
-    return y_new
-
-def calc_real_world_x(df):
-    correction = 0.5 * dict_dimensions[df.folder][0]
-    x_new = df.x_real_mean + correction
-    return x_new
 
 def get_angular_gain_mean(df):
     return df.angular_gain.mean()
@@ -236,8 +92,27 @@ def get_waterheight_mean(df):
 def get_u_lin_velocity(df):
     return df.u_lin_velocity.unique()[0]
 
+def conv_vel(v):
+    if len(v) >= 20:
+        return np.convolve(v, np.ones(20) / 20, 'same')
+    else:
+        return np.convolve(v, np.ones(len(v)) / len(v), 'same')
 
 if __name__ == '__main__':
+
+    # Df = filter_fish(load_summary('data/Summary.h5'))
+    # sub = Df[Df.folder == Df.folder.values[0]]
+    # g = sub.groupby(['folder', 'phase_id', 'particle'])
+    # gsub = pd.DataFrame()
+    # gsub['x_vel'] = g.apply(lambda df: df.x.diff() / df.time.diff())
+    # gsub['time'] = g.apply(lambda df: df.time - df.time.values[0])
+    # gsub['x_pos'] = g.apply(lambda df: df.x)
+    # gsub = gsub.reset_index()
+    # sns.relplot(data=gsub[gsub.phase_id < 20], x='time', y='x_vel', hue='particle', col='phase_id', kind='line', col_wrap=5, height=3, aspect=1)
+    # # Convolve velocity:
+    # gsub["x_vel_conv"] = (gsub.groupby(['folder', 'phase_id', 'particle'])['x_vel'].transform(conv_vel))
+    # sns.relplot(data=gsub[gsub.phase_id < 20], x='time', y='x_vel_conv', hue='particle', col='phase_id', kind='line', col_wrap=5, height=3, aspect=1)
+
 
     if 'recalc' in sys.argv or not(os.path.exists('Summary_final.h5')):
         print('Recalculating final DataFrame')
@@ -245,81 +120,156 @@ if __name__ == '__main__':
         classify_fish.probability_threshold = 0.75
         classify_fish.annot_path = 'annotations'
 
-        Df = filter_fish(load_summary('//172.25.250.112/arrenberg_data/shared/Sara_Widera/Ausgewertet/Summary.h5'))
-        #Df = pd.read_hdf(os.path.join(base_folder, 'Summary.h5'), 'all')
+        Df = filter_fish(load_summary('data/Summary.h5'))
 
-        # Calculate real positions and add water height
-        positions = Df.apply(get_real_pos, axis=1)
-        Df['x_real'] = [p[0] for p in positions]
-        Df['y_real'] = [p[1] for p in positions]
-        Df['water_height'] = Df.apply(get_waterlevel, axis=1)
+        # Calculate real positions and add water heights
+        print('Calcule approx. real position')
+        p = np.asarray([Df.x.values, Df.y.values, np.ones(Df.shape[0]) * 30.]) * 10.
+        d = p / np.linalg.norm(p, axis=0)
+        p_new = p + d * 25. * np.dot(np.array([0., 0., 1.]), d)
+        Df['x_real'] = p_new[0, :]
+        Df['y_real'] = p_new[1, :]
 
-        # Group by particle, damit darunter nicht unbekannt
+        # Add folder based information
+        for folder in Df.folder.unique():
+            alter = Df.folder == folder
+            Df.loc[alter, 'dim_x'] = dict_dimensions[folder][0]
+            Df.loc[alter, 'dim_y'] = dict_dimensions[folder][1]
+            Df.loc[alter,'water_height'] = dict_waterlevel.get(folder)
+
+        # Group by particle and split particles at side lines
+        print('Split into subparticles')
         grps = Df.groupby(['folder', 'phase_name', 'particle'])
-
-        # import IPython
-        # IPython.embed()
-        # Df2 = Df[0:5000]
-        # Df2.to_excel('SubparticleTest.xlsx')
-
-        # Split particles at side lines
+        Df['subparticle'] = 0
         Df = grps.apply(make_subparticles).reset_index(drop=True)
+        Df['subparticle'] = Df['subparticle'].astype(int)
 
-        # Df2 = Df[0:5000]
-        # Df2.to_excel('SubparticleTest.xlsx')
+        print('Save full DataFrame to file')
+        print('HDF5')
+        Df.to_hdf('Summary_final.h5', 'full')
+        # print('XLSX')
+        # for folder in Df.folder.unique():
+        #     print(f'Sheet {folder}')
+        #     Df[Df.folder == folder].to_excel('Summary_final.xlsx', sheet_name=folder)
 
-        # Group by subparticle
+        # Group again, this time with subparticles
+        print('Group by subparticles')
         grps = Df.groupby(['folder', 'phase_name', 'particle', 'subparticle'])
 
         # Create final DataFrame
         Df = pd.DataFrame()
-        Df = Df.reset_index()
-        Df['x_vel'] = grps.apply(calc_x_velocity)
-        Df['y_vel'] = grps.apply(calc_y_velocity)
-        Df['folder'] = grps.apply(fun_get_folder)
-        Df['phase_name'] = grps.apply(fun_get_phase_name)
-        Df['particle'] = grps.apply(fun_get_particle)
-        Df['u_lin_velocity'] = grps.apply(fun_get_u_lin_velocity)
-        Df['u_spat_period'] = grps.apply(fun_get_u_spat_period)
-        Df['frame_count'] = grps.apply(get_row_count)
-        Df['absolute_gain'] = Df.apply(calc_absolute_gain, axis=1)
-        Df['x_real_mean'] = grps.apply(get_x_real_mean)
-        Df['y_real_mean'] = grps.apply(get_y_real_mean)
-        Df['water_height'] = Df.apply(get_waterlevel, axis=1)
-        Df['y_world'] = Df.apply(calc_real_world_y, axis=1)
-        Df['x_world'] = Df.apply(calc_real_world_x, axis=1)
-        Df['retinal_speed'] = Df.apply(get_retinal_speed, axis=1)
-        Df['spat_frequency'] = Df.apply(get_spat_freq, axis=1)
-        Df['angular_gain'] = Df.apply(calc_angular_gain, axis=1)
-        Df['retinal_speed_magnitude'] = Df.apply(get_retinal_speed_magnitude, axis=1)
-        Df['u_lin_velocity_magnitude'] = Df.apply(get_u_lin_velocity_magnitude, axis=1)
-        Df['x_vel_magnitude'] = Df.apply(get_x_vel_magnitude, axis=1)
-        Df['temp_freq'] = Df.apply(calc_temp_freq, axis=1)
-        Df['temp_freq_magnitude'] = Df.apply(get_temp_freq_magnitude, axis=1)
-        Df['actual_retinal_speed'] = Df.apply(calc_actual_retinal_speed, axis=1)
-        # Df.to_csv('Df.csv')
 
-        # Filter out all fish at the arrival side
-        Df = Df[(Df['u_lin_velocity'] < 0.) & (Df.x_real_mean < 50.) | (Df['u_lin_velocity'] > 0.) & (Df.x_real_mean > -50.)]
+        # Fill Df again (from groups)
+        # Basic info
+        print('Basic info')
+        Df['folder'] = grps.apply(lambda df: df.folder.unique()[0])
+        Df['phase_name'] = grps.apply(lambda df: df.phase_name.unique()[0])
+        Df['phase_id'] = grps.apply(lambda df: df.phase_id.unique()[0])
+        Df['particle'] = grps.apply(lambda df: df.particle.unique()[0])
+        Df['subparticle'] = grps.apply(lambda df: df.subparticle.unique()[0])
+        Df['water_height'] = grps.apply(lambda df: df.water_height.unique()[0])
+        Df['dim_x'] = grps.apply(lambda df: df.dim_x.unique()[0])
+        Df['dim_y'] = grps.apply(lambda df: df.dim_y.unique()[0])
+        Df['frame_count'] = grps.apply(lambda df: df.shape[0])
 
-        # Filter out all blank phases
-        Df = Df[np.isfinite(Df.u_lin_velocity)]
+        # Filter out all particles with less than 2 frames
+        Df = Df[Df['frame_count'] > 1]
 
-        # Filter out all coralling stimulus phases
-        Df = Df[np.logical_not((np.isclose(Df.u_lin_velocity, 60.)) | (np.isclose(Df.u_lin_velocity, 75.)) | (np.isclose(Df.u_lin_velocity, 100.)))]
+        # Filter out all coralling/blank stimulus phases
+        print('Filter test phases')
+        Df = Df[(Df['phase_id'] + 1) % 3 == 0].copy()
+
+        print('Get fish position data')
+        # Get projected coordinates
+        Df['x_mean'] = grps.apply(lambda df: df.x_real.mean())
+        Df['y_mean'] = grps.apply(lambda df: df.y_real.mean())
+        # Calculate x/y_world coordinates in [mm] (positive range) and rectify negative/zero values
+        Df['x_world_mean'] = Df['x_mean'] + Df['dim_x']/2.
+        Df.loc[Df['x_world_mean'] <= 0., 'x_world_mean'] = 10e-10
+        Df['y_world_mean'] = Df['y_mean'] + Df['dim_y']/2.
+        Df.loc[Df['y_world_mean'] <= 0., 'y_world_mean'] = 10e-10
+
+        # Stimulus
+        print('Get stimulus parameters')
+        # Linear parameters
+        Df['stim_lin_vel'] = grps.apply(lambda df: df.u_lin_velocity.unique()[0])
+        Df['stim_lin_sp'] = grps.apply(lambda df: df.u_spat_period.unique()[0])
+        Df['stim_lin_sf'] = 1. / Df['stim_lin_sp']
+        Df['stim_lin_tf'] = Df['stim_lin_vel'] / Df['stim_lin_sp']
+        Df['stim_lin_vel_int'] = Df['stim_lin_vel'].values.astype(np.int32)
+        Df['stim_lin_vel_int_abs'] = Df['stim_lin_vel_int'].abs()
+
+        # Fish-perspective based (retinal) parameters
+        # Calculate retinal (angular) spatial frequency from stim_lin_sp [mm] and water_height [mm]
+        # under assumption that fish swim ~10mm under the water surface
+        # (original assumption, but doesn't work with chosen parameters for experiment, so we'll consider fish to be swimming around water level)
+        # 1 / (360 * 2 * atan(sp[mm] / (2 * (wh[mm] - 10.0))) / (2 * pi))
+        # Df['stim_ang_sp'] = Df.apply(lambda s: 360 * 2 * np.arctan(s['stim_lin_sp'] / (2 * (s['water_height'] - 10.0))) / (2 * np.pi), axis=1)
+        Df['stim_ang_sp'] = Df.apply(lambda s: np.round(360 * 2 * np.arctan(s['stim_lin_sp'] / (2 * s['water_height'])) / (2 * np.pi), 0), axis=1)
+        Df['stim_ang_sf'] = 1. / Df['stim_ang_sp']
+        Df['stim_ang_sp_individual'] = Df.apply(lambda s: 360 * 2 * np.arctan(s['stim_lin_sp'] / (2 * (s['y_world_mean']))) / (2 * np.pi), axis=1)
+        Df['stim_ang_sf_individual'] = 1. / Df['stim_ang_sp_individual']
+        # Calculate angular velocity
+        # 1 / (360 * 2 * atan((vel[mm/s] * 1[s] )/ (2 * wh[mm])) / (2 * pi))
+        # This implicitly makes the assumption that the fish is primarily looking directly downwards
+        # Df['stim_ang_vel'] = Df.apply(lambda s: 360 * 2 * np.arctan(s['stim_lin_vel'] * 1.0 / (2 * (s['water_height'] - 10.0))) / (2 * np.pi), axis=1)
+        Df['stim_ang_vel'] = Df.apply(lambda s: np.round(360 * 2 * np.arctan(s['stim_lin_vel'] * 1.0 / (2 * s['water_height'])) / (2 * np.pi), 0), axis=1)
+        # Calculate angular velocity under assumption that mean fish y position is actual fish position
+        Df['stim_ang_vel_individual'] = Df.apply(lambda s: 360 * 2 * np.arctan(s['stim_lin_vel'] * 1.0 / (2 * s['y_world_mean'])) / (2 * np.pi), axis=1)
+
+        Df['stim_ang_tf'] = Df['stim_ang_vel'] / Df['stim_ang_sp']
+
+        # Rounded stimulus velocity
+        Df['stim_ang_vel_int'] = Df['stim_ang_vel'].values.astype(np.int32)
+        Df['stim_ang_vel_int_abs'] = Df['stim_ang_vel_int'].abs()
+        Df['stim_ang_vel_individual_int'] = Df['stim_ang_vel_individual'].values.astype(np.int32)
+        Df['stim_ang_vel_individual_int_abs'] = Df['stim_ang_vel_individual_int'].abs()
+
+        Df['stim_ang_vel_abs'] = Df['stim_ang_vel'].abs()
+        Df['stim_lin_vel_abs'] = Df['stim_lin_vel'].abs()
+
+        print('Set stimulus condition flags')
+        Df['is_constant_lin_vel'] = Df.stim_lin_vel_abs.isin([28, 143, 286])
+        Df['not_constant_lin_vel'] = ~Df['is_constant_lin_vel']
+
+        # Fish responses
+        print('Get fish parameters')
+        Df['x_vel_mean'] = grps.apply(lambda df: (df.x_real.diff() / df.time.diff()).mean())
+        Df['x_vel_mean_abs'] = Df['x_vel_mean'] * Df['stim_lin_vel'] /  Df['stim_lin_vel'].abs()
+        Df['y_vel_mean'] = grps.apply(lambda df: (df.y_real.diff() / df.time.diff()).mean())
+
+        # Calculate gain
+        Df['x_ang_gain'] = Df['x_vel_mean'] / Df['stim_ang_vel']
+        Df['x_ang_gain_individual'] = Df['x_vel_mean'] / Df['stim_ang_vel_individual']
+        Df['x_lin_gain'] = Df['x_vel_mean'] / Df['stim_lin_vel']
+
+        Df['x_vel_abs'] = Df['x_vel_mean'].abs()
+
+        # Filter out all fish at the start side
+        Df = Df[((Df['stim_lin_vel'] > 0.) & (Df['x_mean'] < 40.)) | ((Df['stim_lin_vel'] < 0.) & (Df['x_mean'] > -40.))]
+
+        # Save to final summary
+        Df.to_hdf('Summary_final.h5', 'by_subparticle')
+        Df.to_excel('Summary_final.xlsx', sheet_name='by_subparticle')
+
+    # Load summary grouped by subparticles
+    quit()
+    Df = pd.read_hdf('Summary_final.h5', 'by_subparticle')
+
+    # grps_heat = Df.groupby(['water_height', 'stim_lin_sf', 'stim_tf'])
+    # Df_gain_heat = pd.DataFrame()
+    # Df_gain_heat['ang_gain_mean'] = grps_heat['x_ang_gain'].apply(np.mean)
+    # Df_gain_heat['ang_gain_std'] = grps_heat['x_ang_gain'].apply(np.std)
+    # Df_gain_heat['test'] = Df_gain_heat['ang_gain_mean'] < Df_gain_heat['ang_gain_std']
+
+    # sns.stripplot(data=Df[Df.water_height == 60], x='stim_lin_sf', y='x_lin_gain', hue='stim_ang_vel_int', dodge=True, s=2.)
+    # sns.boxplot(data=Df[Df.water_height == 60], x='stim_lin_sf', y='x_lin_gain', hue='stim_ang_vel_int')
 
 
-        # save
-        Df.to_hdf('Summary_final.h5', 'all')
-        Df.to_excel('Summary_final.xlsx')
-
-    Df = pd.read_hdf('Summary_final.h5', 'all')
-    # Df_gain_heat = pd.read_hdf('Summary_final.h5', 'all')
-
-    # create Df for Tims figure (GAIN heatmaplike): gruppieren vom Ausgangsdatensatz und in neues df speichern
-    grps_heat = Df.groupby(['water_height', 'spat_frequency', 'temp_freq'])
+    # Data for gain heatmaps
+    grps_heat = Df.groupby(['water_height', 'stim_lin_sf', 'stim_tf'])
     Df_gain_heat = pd.DataFrame()
-    Df_gain_heat['angular_gain_mean'] = grps_heat.apply(get_angular_gain_mean)
+    Df_gain_heat['angular_gain_mean'] = grps_heat.apply(np.mean)
     Df_gain_heat['absolute_gain_mean'] = grps_heat.apply(get_absolute_gain_mean)
     Df_gain_heat['spat_frequency_mean'] = grps_heat.apply(get_spat_frequency_mean)
     Df_gain_heat['temp_freq_mean'] = grps_heat.apply(get_temp_freq_mean)
@@ -341,6 +291,7 @@ if __name__ == '__main__':
     Heat_all_an_velo = Df_gain_heat[np.isclose(Df_gain_heat.u_lin_velocity, 13.3) | np.isclose(Df_gain_heat.u_lin_velocity, 26.6) | np.isclose(Df_gain_heat.u_lin_velocity, 53.2) | np.isclose(Df_gain_heat.u_lin_velocity, -13.3) | np.isclose(Df_gain_heat.u_lin_velocity, -26.6) | np.isclose(Df_gain_heat.u_lin_velocity, -53.2) | ((np.isclose(Df_gain_heat.water_height_mean, 30)) & (np.isclose(Df_gain_heat.u_lin_velocity, 28))) | np.isclose(Df_gain_heat.u_lin_velocity, 56) | np.isclose(Df_gain_heat.u_lin_velocity, 111.9) | ((np.isclose(Df_gain_heat.water_height_mean, 30)) & (np.isclose(Df_gain_heat.u_lin_velocity, -28))) | np.isclose(Df_gain_heat.u_lin_velocity, -56) | np.isclose(Df_gain_heat.u_lin_velocity, -111.9) | ((np.isclose(Df_gain_heat.water_height_mean, 120)) & (np.isclose(Df_gain_heat.u_lin_velocity, 286))) | ((np.isclose(Df_gain_heat.water_height_mean, 60)) & (np.isclose(Df_gain_heat.u_lin_velocity, 143))) | np.isclose(Df_gain_heat.u_lin_velocity, 71.5) | ((np.isclose(Df_gain_heat.water_height_mean, 120)) & (np.isclose(Df_gain_heat.u_lin_velocity, -286))) | ((np.isclose(Df_gain_heat.water_height_mean, 60)) & (np.isclose(Df_gain_heat.u_lin_velocity, -143))) | np.isclose(Df_gain_heat.u_lin_velocity, -71.5)]
 
     an_velo25_50 = Df[((np.isclose(Df.water_height, 30)) & (np.isclose(Df.u_lin_velocity, 28))) | np.isclose(Df.u_lin_velocity, 56) | np.isclose(Df.u_lin_velocity, 111.9) | ((np.isclose(Df.water_height, 30)) & (np.isclose(Df.u_lin_velocity, -28))) | np.isclose(Df.u_lin_velocity, -56) | np.isclose(Df.u_lin_velocity, -111.9) | np.isclose(Df.u_lin_velocity, 13.3) | np.isclose(Df.u_lin_velocity, 26.6) | np.isclose(Df.u_lin_velocity, 53.2) | np.isclose(Df.u_lin_velocity, -13.3) | np.isclose(Df.u_lin_velocity, -26.6) | np.isclose(Df.u_lin_velocity, -53.2)]
+
 
     freq4 = Df[np.isclose(Df.spat_frequency, 0.04)]
     freq2 = Df[np.isclose(Df.spat_frequency, 0.02)]
@@ -616,7 +567,5 @@ wilight_shifted_r', 'viridis', 'viridis_r', 'vlag', 'vlag_r', 'winter', 'winter_
 
     Import IPython
     IPython.embed()
-    
-    
     
     """
