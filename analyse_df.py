@@ -24,17 +24,17 @@ dict_dimensions = {'rec_2020-12-17-13-53-27_3cm': (121, 33), 'rec_2020-12-18-09-
                    'rec_2021-02-03-17-05-28_3cm': (120, 31)}
 
 
-#base_folder = '//172.25.250.112/arrenberg_data/shared/Sara_Widera/Ausgewertet'
-base_folder = './data/'
+base_folder = '//172.25.250.112/arrenberg_data/shared/Sara_Widera/Ausgewertet'
+#base_folder = './data/'
 
 def plot_colorpoint(ax, x, y, z, cmap, valmap, fontsize = 9):
     if sum(z < valmap) > len(valmap) / 2:
         fontcolor = 'w'
     else:
         fontcolor = 'k'
-    ax.loglog(x, y, marker='o', markersize=17, color=cmap[np.argmin(np.abs(valmap - z)), :])
-    ax.text(x, y, str(round(z, 1)), fontsize=fontsize, color=fontcolor,  ha='center', va='center')
-
+    ax.loglog(x, y, marker='o', markersize=20, color=cmap[np.argmin(np.abs(valmap - z)), :])
+    ax.text(x, y, str(round(z, 2)), fontsize=fontsize, color=fontcolor,  ha='center', va='center')
+# hier funktion für colourmap. Punktgröße ist Markersize, Nachkommastellen bei str(round...)
 
 def get_waterlevel(series):
     path = series.folder.split(os.sep)
@@ -72,25 +72,26 @@ def fill_in_IDs(df):
                          'particle': df.particle.unique(),
                          'subparticle': df.subparticle.unique()})
 
-
-def get_angular_gain_mean(df):
-    return df.angular_gain.mean()
-def get_absolute_gain_mean(df):
-    return df.absolute_gain.mean()
-def get_spat_frequency_mean(df):
-    return df.spat_frequency.mean()
-def get_temp_freq_mean(df):
-    return df.temp_freq.mean()
-def get_temp_freq_magnitude_mean(df):
-    return df.temp_freq_magnitude.mean()
-def get_retinal_speed_mean(df):
-    return df.retinal_speed.mean()
-def get_retinal_speed_magnitude_mean(df):
-    return df.retinal_speed_magnitude.mean()
-def get_waterheight_mean(df):
-    return df.water_height.mean()
-def get_u_lin_velocity(df):
-    return df.u_lin_velocity.unique()[0]
+# def get_x_ang_gain_mean(df):
+#     return df.x_ang_gain.mean()
+# def get_angular_gain_mean(df):
+#     return df.angular_gain.mean()
+# def get_absolute_gain_mean(df):
+#     return df.absolute_gain.mean()
+# def get_spat_frequency_mean(df):
+#     return df.spat_frequency.mean()
+# def get_temp_freq_mean(df):
+#     return df.temp_freq.mean()
+# def get_temp_freq_magnitude_mean(df):
+#     return df.temp_freq_magnitude.mean()
+# def get_retinal_speed_mean(df):
+#     return df.retinal_speed.mean()
+# def get_retinal_speed_magnitude_mean(df):
+#     return df.retinal_speed_magnitude.mean()
+# def get_waterheight_mean(df):
+#     return df.water_height.mean()
+# def get_u_lin_velocity(df):
+#     return df.u_lin_velocity.unique()[0]
 
 def conv_vel(v):
     if len(v) >= 20:
@@ -120,10 +121,11 @@ if __name__ == '__main__':
         classify_fish.probability_threshold = 0.75
         classify_fish.annot_path = 'annotations'
 
-        Df = filter_fish(load_summary('data/Summary.h5'))
+        #Df = filter_fish(load_summary('data/Summary.h5'))
+        Df = filter_fish(load_summary('//172.25.250.112/arrenberg_data/shared/Sara_Widera/Ausgewertet/Summary.h5'))
 
         # Calculate real positions and add water heights
-        print('Calcule approx. real position')
+        print('Calculate approx. real position')
         p = np.asarray([Df.x.values, Df.y.values, np.ones(Df.shape[0]) * 30.]) * 10.
         d = p / np.linalg.norm(p, axis=0)
         p_new = p + d * 25. * np.dot(np.array([0., 0., 1.]), d)
@@ -252,8 +254,14 @@ if __name__ == '__main__':
         Df.to_hdf('Summary_final.h5', 'by_subparticle')
         Df.to_excel('Summary_final.xlsx', sheet_name='by_subparticle')
 
+        import IPython
+        IPython.embed()
+
     # Load summary grouped by subparticles
     quit()
+
+
+
     Df = pd.read_hdf('Summary_final.h5', 'by_subparticle')
 
     # grps_heat = Df.groupby(['water_height', 'stim_lin_sf', 'stim_tf'])
@@ -264,7 +272,8 @@ if __name__ == '__main__':
 
     # sns.stripplot(data=Df[Df.water_height == 60], x='stim_lin_sf', y='x_lin_gain', hue='stim_ang_vel_int', dodge=True, s=2.)
     # sns.boxplot(data=Df[Df.water_height == 60], x='stim_lin_sf', y='x_lin_gain', hue='stim_ang_vel_int')
-
+    import IPython
+    IPython.embed()
 
     # Data for gain heatmaps
     grps_heat = Df.groupby(['water_height', 'stim_lin_sf', 'stim_tf'])
@@ -280,15 +289,14 @@ if __name__ == '__main__':
     Df_gain_heat['u_lin_velocity'] = grps_heat.apply(get_u_lin_velocity)
 
 # FILTERED DATA FOR FIGURES:
+#todo: verbessern mit Liste oder ähnlichem (angular speed direkt verwenden)
 
     all_abs_velo = Df[(np.isclose(Df.u_lin_velocity, 28) | np.isclose(Df.u_lin_velocity, 143) | np.isclose(Df.u_lin_velocity, 286) | np.isclose(Df.u_lin_velocity, -28) | np.isclose(Df.u_lin_velocity, -143) | np.isclose(Df.u_lin_velocity, -286))]
-    Heat_all_abs_velo = Df_gain_heat[(np.isclose(Df_gain_heat.u_lin_velocity, 28) | np.isclose(Df_gain_heat.u_lin_velocity, 143) | np.isclose(Df_gain_heat.u_lin_velocity, 286) | np.isclose(Df_gain_heat.u_lin_velocity, -28) | np.isclose(Df_gain_heat.u_lin_velocity, -143) | np.isclose(Df_gain_heat.u_lin_velocity, -286))]
 
     an_velo25 = Df[np.isclose(Df.u_lin_velocity, 13.3) | np.isclose(Df.u_lin_velocity, 26.6) | np.isclose(Df.u_lin_velocity, 53.2) | np.isclose(Df.u_lin_velocity, -13.3) | np.isclose(Df.u_lin_velocity, -26.6) | np.isclose(Df.u_lin_velocity, -53.2)]
     an_velo50 = Df[((np.isclose(Df.water_height, 30)) & (np.isclose(Df.u_lin_velocity, 28))) | np.isclose(Df.u_lin_velocity, 56) | np.isclose(Df.u_lin_velocity, 111.9) | ((np.isclose(Df.water_height, 30)) & (np.isclose(Df.u_lin_velocity, -28))) | np.isclose(Df.u_lin_velocity, -56) | np.isclose(Df.u_lin_velocity, -111.9)]
     an_velo100 = Df[((np.isclose(Df.water_height, 120)) & (np.isclose(Df.u_lin_velocity, 286))) | ((np.isclose(Df.water_height, 60)) & (np.isclose(Df.u_lin_velocity, 143))) | np.isclose(Df.u_lin_velocity, 71.5) | ((np.isclose(Df.water_height, 120)) & (np.isclose(Df.u_lin_velocity, -286))) | ((np.isclose(Df.water_height, 60)) & (np.isclose(Df.u_lin_velocity, -143))) | np.isclose(Df.u_lin_velocity, -71.5)]
     all_an_velo = Df[np.isclose(Df.u_lin_velocity, 13.3) | np.isclose(Df.u_lin_velocity, 26.6) | np.isclose(Df.u_lin_velocity, 53.2) | np.isclose(Df.u_lin_velocity, -13.3) | np.isclose(Df.u_lin_velocity, -26.6) | np.isclose(Df.u_lin_velocity, -53.2) | ((np.isclose(Df.water_height, 30)) & (np.isclose(Df.u_lin_velocity, 28))) | np.isclose(Df.u_lin_velocity, 56) | np.isclose(Df.u_lin_velocity, 111.9) | ((np.isclose(Df.water_height, 30)) & (np.isclose(Df.u_lin_velocity, -28))) | np.isclose(Df.u_lin_velocity, -56) | np.isclose(Df.u_lin_velocity, -111.9) | ((np.isclose(Df.water_height, 120)) & (np.isclose(Df.u_lin_velocity, 286))) | ((np.isclose(Df.water_height, 60)) & (np.isclose(Df.u_lin_velocity, 143))) | np.isclose(Df.u_lin_velocity, 71.5) | ((np.isclose(Df.water_height, 120)) & (np.isclose(Df.u_lin_velocity, -286))) | ((np.isclose(Df.water_height, 60)) & (np.isclose(Df.u_lin_velocity, -143))) | np.isclose(Df.u_lin_velocity, -71.5)]
-    Heat_all_an_velo = Df_gain_heat[np.isclose(Df_gain_heat.u_lin_velocity, 13.3) | np.isclose(Df_gain_heat.u_lin_velocity, 26.6) | np.isclose(Df_gain_heat.u_lin_velocity, 53.2) | np.isclose(Df_gain_heat.u_lin_velocity, -13.3) | np.isclose(Df_gain_heat.u_lin_velocity, -26.6) | np.isclose(Df_gain_heat.u_lin_velocity, -53.2) | ((np.isclose(Df_gain_heat.water_height_mean, 30)) & (np.isclose(Df_gain_heat.u_lin_velocity, 28))) | np.isclose(Df_gain_heat.u_lin_velocity, 56) | np.isclose(Df_gain_heat.u_lin_velocity, 111.9) | ((np.isclose(Df_gain_heat.water_height_mean, 30)) & (np.isclose(Df_gain_heat.u_lin_velocity, -28))) | np.isclose(Df_gain_heat.u_lin_velocity, -56) | np.isclose(Df_gain_heat.u_lin_velocity, -111.9) | ((np.isclose(Df_gain_heat.water_height_mean, 120)) & (np.isclose(Df_gain_heat.u_lin_velocity, 286))) | ((np.isclose(Df_gain_heat.water_height_mean, 60)) & (np.isclose(Df_gain_heat.u_lin_velocity, 143))) | np.isclose(Df_gain_heat.u_lin_velocity, 71.5) | ((np.isclose(Df_gain_heat.water_height_mean, 120)) & (np.isclose(Df_gain_heat.u_lin_velocity, -286))) | ((np.isclose(Df_gain_heat.water_height_mean, 60)) & (np.isclose(Df_gain_heat.u_lin_velocity, -143))) | np.isclose(Df_gain_heat.u_lin_velocity, -71.5)]
 
     an_velo25_50 = Df[((np.isclose(Df.water_height, 30)) & (np.isclose(Df.u_lin_velocity, 28))) | np.isclose(Df.u_lin_velocity, 56) | np.isclose(Df.u_lin_velocity, 111.9) | ((np.isclose(Df.water_height, 30)) & (np.isclose(Df.u_lin_velocity, -28))) | np.isclose(Df.u_lin_velocity, -56) | np.isclose(Df.u_lin_velocity, -111.9) | np.isclose(Df.u_lin_velocity, 13.3) | np.isclose(Df.u_lin_velocity, 26.6) | np.isclose(Df.u_lin_velocity, 53.2) | np.isclose(Df.u_lin_velocity, -13.3) | np.isclose(Df.u_lin_velocity, -26.6) | np.isclose(Df.u_lin_velocity, -53.2)]
 
@@ -306,8 +314,6 @@ if __name__ == '__main__':
     wh30 = Df_gain_heat[(np.isclose(Df_gain_heat.water_height_mean, 30))]
     wh60 = Df_gain_heat[(np.isclose(Df_gain_heat.water_height_mean, 60))]
     wh120 = Df_gain_heat[(np.isclose(Df_gain_heat.water_height_mean, 120))]
-    Heat_abs_wh60 = Heat_all_abs_velo[(np.isclose(Heat_all_abs_velo.water_height_mean, 60))]
-    Heat_an_wh60 = Heat_all_an_velo[(np.isclose(Heat_all_an_velo.water_height_mean, 60))]
 
     import IPython
     IPython.embed()

@@ -1,25 +1,54 @@
-import pandas as pd
-import os
-import matplotlib.pyplot as plt
-import numpy as np
-import classify_fish
-from classify_fish import filter_fish, load_summary
-import seaborn as sns
-import sys
-
-from auxfuns import *
-import matplotlib as mpl
-from scipy.stats import sem
-from time import sleep
-import scipy.io as scio
 from analyse_df import *
 
+if __name__ == '__main__':
 
 # load Data
-base_folder = './data/'
-Df = pd.read_hdf('Summary_final.h5', 'all')
+    base_folder = './data/'
+    #Df = pd.read_hdf('Summary_final.h5', 'all')
+    Df = pd.read_hdf('Summary_final.h5', 'by_subparticle')
 
 
+# GAIN AT DIFFERENT WATER_HEIGHTS
+
+
+# absolute Gain (jeweils gepoolt und nicht)
+    ax = sns.relplot(data=Df, x='stim_ang_vel_int_abs', y='x_lin_gain', hue='stim_ang_sf', palette='dark', col='water_height', kind='line')
+    #ax.set(xlabel='water_height [mm]', ylabel='absolute gain', title='all velocities')
+    plt.tight_layout()
+    plt.show()
+
+    ax = sns.relplot(data=Df, x='stim_ang_vel_int', y='x_lin_gain', hue='stim_ang_sf', palette='dark', col='water_height', kind='line')
+    #ax.set(xlabel='retinal speed [deg/sec]', ylabel='absolute gain')
+    #ax.set_titles('{col_var} = {col_name} bzw spatial frequency [cyc/deg]')
+    plt.tight_layout()
+    plt.show()
+
+# angular Gain
+    ax = sns.relplot(data=Df, x='stim_ang_vel_int_abs', y='x_ang_gain', hue='stim_ang_sf', palette='dark', col='water_height', kind='line')
+    #ax.set(xlabel='water_height [mm]', ylabel='angular gain', title='all velocities')
+    plt.tight_layout()
+    plt.show()
+
+
+    ax = sns.relplot(data=Df, x='stim_ang_vel_int', y='x_ang_gain', hue='stim_ang_sf', palette='dark', col='water_height', kind='line')
+    #ax.set(xlabel='retinal speed [deg/sec]', ylabel='absolute gain')
+    #ax.set_titles('{col_var} = {col_name} bzw spatial frequency [cyc/deg]')
+    plt.tight_layout()
+    plt.show()
+
+
+
+
+
+
+
+
+quit()
+
+
+
+
+# altes skript, falls ich mal iwas nachschauen will und nicht auf github suchen will
 # filter data:
 
 all_abs_velo = Df[(np.isclose(Df.u_lin_velocity, 28) | np.isclose(Df.u_lin_velocity, 143) | np.isclose(Df.u_lin_velocity, 286) | np.isclose(Df.u_lin_velocity, -28) | np.isclose(Df.u_lin_velocity, -143) | np.isclose(Df.u_lin_velocity, -286))]

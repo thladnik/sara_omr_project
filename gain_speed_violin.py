@@ -14,14 +14,68 @@ from time import sleep
 import scipy.io as sciopython
 from analyse_df import *
 
+if __name__ == '__main__':
 
 # load Data
-base_folder = './data/'
-Df = pd.read_hdf('Summary_final.h5', 'all')
+    base_folder = './data/'
+    Df = pd.read_hdf('Summary_final.h5', 'by_subparticle')
 
 
+# plot gain at different stimulus speeds
+
+# GAIN SPEED
+# all velocities at once
+
+# linear Gain
+    ax = sns.relplot(data=Df, x='stim_ang_vel_int_abs', y='x_lin_gain', hue='water_height', palette='dark', col='stim_ang_sf', kind='line')
+    #ax.set(xlabel='retinal speed [deg/sec]', ylabel='absolute gain')
+    #ax.set_titles('{col_var} = {col_name} bzw spatial frequency [cyc/deg]')
+    plt.tight_layout()
+    plt.show()
+
+
+# angular Gain
+    ax = sns.relplot(data=Df, x='stim_ang_vel_int_abs', y='x_ang_gain', hue='water_height', palette='dark', col='stim_ang_sf', kind='line')
+    #ax.set(xlabel='retinal speed [deg/sec]', ylabel='relative gain')
+    #ax.set_titles('{col_var} = {col_name} bzw spatial frequency [cyc/deg]')
+    plt.tight_layout()
+    plt.show()
+
+
+
+
+#todo: komische negative gains beim violin plot verstehen und ggf wegmachen
+
+# VIOLIN plot: ANGULAR Gain
+    ax = sns.violinplot(data=Df, x='stim_ang_vel_int_abs', y='x_ang_gain', hue='water_height')
+    #ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='angular gain')
+    plt.show()
+
+# with constant stim vel
+    ax = sns.violinplot(data=Df[Df['is_constant_lin_vel']], x='stim_ang_vel_int_abs', y='x_ang_gain', hue='water_height')
+    #ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='angular gain')
+    plt.show()
+
+# with not constant stim vel
+    ax = sns.violinplot(data=Df[Df['not_constant_lin_vel']], x='stim_ang_vel_int_abs', y='x_ang_gain', hue='water_height')
+    #ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='angular gain')
+    plt.show()
+
+
+# violin plot: LINEAR Gain
+    ax = sns.violinplot(data=Df[Df['not_constant_lin_vel']], x='stim_ang_vel_int_abs', y='x_lin_gain', hue='water_height')
+    #ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='linear gain')
+    plt.show()
+
+
+
+
+quit()
+
+
+
+# ALTES SKRIPT, falls ich mal iwas nachschauen will und nicht auf github suchen will
 # filter data
-
 
 all_abs_velo = Df[(np.isclose(Df.u_lin_velocity, 28) | np.isclose(Df.u_lin_velocity, 143) | np.isclose(Df.u_lin_velocity, 286) | np.isclose(Df.u_lin_velocity, -28) | np.isclose(Df.u_lin_velocity, -143) | np.isclose(Df.u_lin_velocity, -286))]
 
@@ -49,7 +103,7 @@ import IPython
 IPython.embed()
 
 
-# todo: irgendwie die water height dazu, damit wirklich nur die angular velocties. also Liste in einer liste oder so?
+# irgendwie die water height dazu, damit wirklich nur die angular velocties. also Liste in einer liste oder so?
 velocities_for_an_vel = [ [30, 13.3], [30, 28], [30, 71.51],
                           [60, 26.6], [60, 56], [60, 143],
                           [120, 53.2], [120, 111.9], [1120, 286]]
