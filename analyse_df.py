@@ -27,12 +27,14 @@ dict_dimensions = {'rec_2020-12-17-13-53-27_3cm': (121, 33), 'rec_2020-12-18-09-
 base_folder = '//172.25.250.112/arrenberg_data/shared/Sara_Widera/Ausgewertet'
 #base_folder = './data/'
 
-def plot_colorpoint(ax, x, y, z, cmap, valmap, fontsize = 9):
+def plot_colorpoint(ax, x, y, z, cmap, valmap, fontsize = 12.5):
     if sum(z < valmap) > len(valmap) / 2:
         fontcolor = 'w'
     else:
         fontcolor = 'k'
-    ax.loglog(x, y, marker='o', markersize=20, color=cmap[np.argmin(np.abs(valmap - z)), :])
+    if z < 0:
+        z = 0.00
+    ax.loglog(x, y, marker='o', markersize=25, color=cmap[np.argmin(np.abs(valmap - z)), :])
     ax.text(x, y, str(round(z, 2)), fontsize=fontsize, color=fontcolor,  ha='center', va='center')
 # hier funktion für colourmap. Punktgröße ist Markersize, Nachkommastellen bei str(round...)
 
@@ -201,25 +203,28 @@ if __name__ == '__main__':
         Df['stim_lin_vel_int'] = Df['stim_lin_vel'].values.astype(np.int32)
         Df['stim_lin_vel_int_abs'] = Df['stim_lin_vel_int'].abs()
 
+        Df['assumed_swim_height'] = Df['water_height']-10 #habe ich für unten gebraucht
+
         # Fish-perspective based (retinal) parameters
         # Calculate retinal (angular) spatial frequency from stim_lin_sp [mm] and water_height [mm]
         # under assumption that fish swim ~10mm under the water surface
         # (original assumption, but doesn't work with chosen parameters for experiment, so we'll consider fish to be swimming around water level)
         # 1 / (360 * 2 * atan(sp[mm] / (2 * (wh[mm] - 10.0))) / (2 * pi))
-        # Df['stim_ang_sp'] = Df.apply(lambda s: 360 * 2 * np.arctan(s['stim_lin_sp'] / (2 * (s['water_height'] - 10.0))) / (2 * np.pi), axis=1)
         Df['stim_ang_sp'] = Df.apply(lambda s: np.round(360 * 2 * np.arctan(s['stim_lin_sp'] / (2 * s['water_height'])) / (2 * np.pi), 0), axis=1)
+        # Df['stim_ang_sp'] = Df.apply(lambda s: np.round(360 * 2 * np.arctan(s['stim_lin_sp'] / (2 * s['assumed_swim_height'])) / (2 * np.pi), 0), axis=1)
         Df['stim_ang_sf'] = 1. / Df['stim_ang_sp']
         Df['stim_ang_sp_individual'] = Df.apply(lambda s: 360 * 2 * np.arctan(s['stim_lin_sp'] / (2 * (s['y_world_mean']))) / (2 * np.pi), axis=1)
         Df['stim_ang_sf_individual'] = 1. / Df['stim_ang_sp_individual']
         # Calculate angular velocity
         # 1 / (360 * 2 * atan((vel[mm/s] * 1[s] )/ (2 * wh[mm])) / (2 * pi))
         # This implicitly makes the assumption that the fish is primarily looking directly downwards
-        # Df['stim_ang_vel'] = Df.apply(lambda s: 360 * 2 * np.arctan(s['stim_lin_vel'] * 1.0 / (2 * (s['water_height'] - 10.0))) / (2 * np.pi), axis=1)
-        Df['stim_ang_vel'] = Df.apply(lambda s: np.round(360 * 2 * np.arctan(s['stim_lin_vel'] * 1.0 / (2 * s['water_height'])) / (2 * np.pi), 0), axis=1)
+        Df['stim_ang_vel'] = Df.apply(lambda s: np.round(360 * 2 * np.arctan(s['stim_lin_vel'] * 1.0 / (2 * s['assumed_swim_height'])) / (2 * np.pi), 0), axis=1)
+        Df['stim_ang_vel'] = Df.apply(lambda s: 360 * 2 * np.arctan(s['stim_lin_vel'] * 1.0 / (2 * s['water_height'] - 10.0)) / (2 * np.pi), axis=1)
         # Calculate angular velocity under assumption that mean fish y position is actual fish position
         Df['stim_ang_vel_individual'] = Df.apply(lambda s: 360 * 2 * np.arctan(s['stim_lin_vel'] * 1.0 / (2 * s['y_world_mean'])) / (2 * np.pi), axis=1)
 
         Df['stim_ang_tf'] = Df['stim_ang_vel'] / Df['stim_ang_sp']
+        Df['stim_ang_tf_abs'] = Df['stim_ang_tf'].abs() #habe ich mal noch reingemacht
 
         # Rounded stimulus velocity
         Df['stim_ang_vel_int'] = Df['stim_ang_vel'].values.astype(np.int32)

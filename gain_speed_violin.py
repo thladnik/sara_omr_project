@@ -20,47 +20,114 @@ if __name__ == '__main__':
     base_folder = './data/'
     Df = pd.read_hdf('Summary_final.h5', 'by_subparticle')
 
+# filter data
+    freq4 = Df[np.isclose(Df.stim_ang_sf, 0.04)]
+    freq2 = Df[np.isclose(Df.stim_ang_sf, 0.02)]
+    freq1 = Df[np.isclose(Df.stim_ang_sf, 0.01)]
 
 # plot gain at different stimulus speeds
+
+    import IPython
+    IPython.embed()
 
 # GAIN SPEED
 # all velocities at once
 
+# (pooled velocities)
 # linear Gain
-    ax = sns.relplot(data=Df, x='stim_ang_vel_int_abs', y='x_lin_gain', hue='water_height', palette='dark', col='stim_ang_sf', kind='line')
-    #ax.set(xlabel='retinal speed [deg/sec]', ylabel='absolute gain')
-    #ax.set_titles('{col_var} = {col_name} bzw spatial frequency [cyc/deg]')
+    ax = sns.relplot(data=Df, x='stim_lin_vel_int_abs', y='x_lin_gain', hue='water_height', palette='dark', col='stim_ang_sf', kind='line')
+    ax.set(xlabel='magnitude of linear velocity [mm/sec]', ylabel='linear gain')
+    ax.set_titles('spatial frequency = {col_name} cyc/deg')
     plt.tight_layout()
     plt.show()
 
 
 # angular Gain
     ax = sns.relplot(data=Df, x='stim_ang_vel_int_abs', y='x_ang_gain', hue='water_height', palette='dark', col='stim_ang_sf', kind='line')
-    #ax.set(xlabel='retinal speed [deg/sec]', ylabel='relative gain')
-    #ax.set_titles('{col_var} = {col_name} bzw spatial frequency [cyc/deg]')
+    ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='angular gain [mm/deg]')
+    ax.set_titles('spatial frequency = {col_name} cyc/deg')
     plt.tight_layout()
     plt.show()
 
 
+
+    quit()
 
 
 #todo: komische negative gains beim violin plot verstehen und ggf wegmachen
 
 # VIOLIN plot: ANGULAR Gain
     ax = sns.violinplot(data=Df, x='stim_ang_vel_int_abs', y='x_ang_gain', hue='water_height')
-    #ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='angular gain')
+    ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='angular gain [mm/deg]')
+    ax.set_title('all stimulus velocites')
+    plt.show()
+
+    # Spatial Frequency 0.01
+    ax = sns.violinplot(data=freq1, x='stim_ang_vel_int_abs', y='x_ang_gain', hue='water_height')
+    ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='angular gain [mm/deg]')
+    ax.set_title('all stimulus velocites; sf = 0.01')
+    plt.show()
+
+    # Spatial Frequency 0.02
+    ax = sns.violinplot(data=freq2, x='stim_ang_vel_int_abs', y='x_ang_gain', hue='water_height')
+    ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='angular gain [mm/deg]')
+    ax.set_title('all stimulus velocites; sf = 0.02')
+    plt.show()
+
+    # Spatial Frequency 0.04
+    ax = sns.violinplot(data=freq4, x='stim_ang_vel_int_abs', y='x_ang_gain', hue='water_height')
+    ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='angular gain [mm/deg]')
+    ax.set_title('all stimulus velocites; sf = 0.04')
     plt.show()
 
 # with constant stim vel
-    ax = sns.violinplot(data=Df[Df['is_constant_lin_vel']], x='stim_ang_vel_int_abs', y='x_ang_gain', hue='water_height')
-    #ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='angular gain')
+    ax = sns.violinplot(data=Df[Df['is_constant_lin_vel']], x='stim_lin_vel_int_abs', y='x_ang_gain', hue='water_height', col='stim_ang_sf')
+    ax.set(xlabel='magnitude of linear stimulus velocity [mm/sec]', ylabel='angular gain [mm/deg]')
+    ax.set_title('linear stimulus velocites')
     plt.show()
+
+    # Spatial Frequency 0.01
+    ax = sns.violinplot(data=freq1[freq1['is_constant_lin_vel']], x='stim_lin_vel_int_abs', y='x_ang_gain', hue='water_height')
+    ax.set(xlabel='magnitude of linear stimulus velocity [mm/sec]', ylabel='angular gain [mm/deg]')
+    ax.set_title('linear stimulus velocites; sf = 0.01')
+    plt.show()
+
+    # Spatial Frequency 0.02
+    ax = sns.violinplot(data=freq2[freq2['is_constant_lin_vel']], x='stim_lin_vel_int_abs', y='x_ang_gain', hue='water_height')
+    ax.set(xlabel='magnitude of linear stimulus velocity [mm/sec]', ylabel='angular gain [mm/deg]')
+    ax.set_title('linear stimulus velocites; sf = 0.02')
+    plt.show()
+
+    # Spatial Frequency 0.04
+    ax = sns.violinplot(data=freq4[freq4['is_constant_lin_vel']], x='stim_lin_vel_int_abs', y='x_ang_gain', hue='water_height')
+    ax.set(xlabel='magnitude of linear stimulus velocity [mm/sec]', ylabel='angular gain [mm/deg]')
+    ax.set_title('linear stimulus velocites; sf = 0.04')
+    plt.show()
+
 
 # with not constant stim vel
     ax = sns.violinplot(data=Df[Df['not_constant_lin_vel']], x='stim_ang_vel_int_abs', y='x_ang_gain', hue='water_height')
-    #ax.set(xlabel='magnitude of retinal speed [deg/sec]', ylabel='angular gain')
+    ax.set(xlabel='magnitude of angular stimulus velocity [mm/sec]', ylabel='angular gain [mm/deg]')
+    ax.set_title('angular stimulus velocites')
     plt.show()
 
+    # Spatial Frequency 0.01
+    ax = sns.violinplot(data=freq1[freq1['not_constant_lin_vel']], x='stim_ang_vel_int_abs', y='x_ang_gain', hue='water_height')
+    ax.set(xlabel='magnitude of angular stimulus velocity [mm/sec]', ylabel='angular gain [mm/deg]')
+    ax.set_title('angular stimulus velocites;  sf = 0.01')
+    plt.show()
+
+    # Spatial Frequency 0.02
+    ax = sns.violinplot(data=freq2[freq2['not_constant_lin_vel']], x='stim_ang_vel_int_abs', y='x_ang_gain', hue='water_height')
+    ax.set(xlabel='magnitude of angular stimulus velocity [mm/sec]', ylabel='angular gain [mm/deg]')
+    ax.set_title('angular stimulus velocites;  sf = 0.02')
+    plt.show()
+
+    # Spatial Frequency 0.04
+    ax = sns.violinplot(data=freq4[freq4['not_constant_lin_vel']], x='stim_ang_vel_int_abs', y='x_ang_gain', hue='water_height')
+    ax.set(xlabel='magnitude of angular stimulus velocity [mm/sec]', ylabel='angular gain [mm/deg]')
+    ax.set_title('angular stimulus velocites;  sf = 0.04')
+    plt.show()
 
 # violin plot: LINEAR Gain
     ax = sns.violinplot(data=Df[Df['not_constant_lin_vel']], x='stim_ang_vel_int_abs', y='x_lin_gain', hue='water_height')
